@@ -4,13 +4,18 @@ import { notFound, redirect } from "next/navigation";
 import { MeetingPlayer } from "@/components/meeting-player";
 import { SummaryPanel } from "@/components/summary-panel";
 import { ActionItemsPanel } from "@/components/action-items-panel";
+import { ShareButton } from "@/components/share-button";
 
 export default async function MeetingDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ t?: string }>;
 }) {
   const { id } = await params;
+  const { t } = await searchParams;
+  const initialSeekMs = t ? Number(t) : undefined;
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
   const userId = session.user.id;
@@ -22,6 +27,7 @@ export default async function MeetingDetailPage({
       participants: true,
       summaries: { orderBy: { generatedAt: "asc" } },
       actionItems: { orderBy: { createdAt: "asc" } },
+      highlights: { orderBy: { timestampMs: "asc" } },
     },
   });
 
@@ -29,23 +35,27 @@ export default async function MeetingDetailPage({
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-8">
-      <div className="mb-6">
-        <h1 className="text-lg font-semibold">{meeting.title}</h1>
-        <div className="mt-1 text-sm text-neutral-500">
-          {meeting.occurredAt.toLocaleString(undefined, {
-            dateStyle: "medium",
-            timeStyle: "short",
-          })}{" "}
-          · {meeting.participants.map((p) => p.name).join(", ")}
-          {meeting.source === "SEED" && (
-            <span className="ml-2 rounded border border-amber-700/50 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-400">
-              Sample meeting
-            </span>
-          )}
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-lg font-semibold">{meeting.title}</h1>
+          <div className="mt-1 text-sm text-neutral-500">
+            {meeting.occurredAt.toLocaleString(undefined, {
+              dateStyle: "medium",
+              timeStyle: "short",
+            })}{" "}
+            · {meeting.participants.map((p) => p.name).join(", ")}
+            {meeting.source === "SEED" && (
+              <span className="ml-2 rounded border border-amber-700/50 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-400">
+                Sample meeting
+              </span>
+            )}
+          </div>
         </div>
+        <ShareButton meetingId={meeting.id} />
       </div>
 
       <MeetingPlayer
+        meetingId={meeting.id}
         mediaUrl={meeting.mediaUrl}
         mediaType={meeting.mediaType}
         lines={meeting.transcriptLines.map((l) => ({
@@ -55,6 +65,13 @@ export default async function MeetingDetailPage({
           endMs: l.endMs,
           text: l.text,
         }))}
+        initialHighlights={meeting.highlights.map((h) => ({
+          id: h.id,
+          timestampMs: h.timestampMs,
+          label: h.label,
+          note: h.note,
+        }))}
+        initialSeekMs={initialSeekMs}
       />
 
       <div className="mt-8 grid gap-6 md:grid-cols-2">

@@ -10,6 +10,23 @@ function formatDuration(sec: number) {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+function escapeRegExp(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function highlightMatch(text: string, query: string) {
+  const parts = text.split(new RegExp(`(${escapeRegExp(query)})`, "gi"));
+  return parts.map((part, i) =>
+    part.toLowerCase() === query.toLowerCase() ? (
+      <mark key={i} className="rounded bg-amber-400/20 text-amber-300">
+        {part}
+      </mark>
+    ) : (
+      <span key={i}>{part}</span>
+    )
+  );
+}
+
 export default async function CallsPage({
   searchParams,
 }: {
@@ -32,7 +49,24 @@ export default async function CallsPage({
         }
       : { ownerId: userId },
     orderBy: { occurredAt: "desc" },
-    include: { participants: true, _count: { select: { highlights: true, actionItems: true } } },
+    include: {
+      participants: true,
+      _count: { select: { highlights: true, actionItems: true } },
+      // Surface the first matching line so a search result can jump
+      // straight to that moment, not just the meeting as a whole.
+      transcriptLines: q
+        ? {
+            where: {
+              OR: [
+                { text: { contains: q, mode: "insensitive" } },
+                { speakerName: { contains: q, mode: "insensitive" } },
+              ],
+            },
+            orderBy: { order: "asc" },
+            take: 1,
+          }
+        : false,
+    },
   });
 
   return (
@@ -52,31 +86,45 @@ export default async function CallsPage({
         </div>
       ) : (
         <ul className="divide-y divide-neutral-800 rounded-lg border border-neutral-800">
-          {meetings.map((m) => (
-            <li key={m.id}>
-              <Link
-                href={`/calls/${m.id}`}
-                className="flex items-center justify-between gap-4 px-4 py-4 hover:bg-neutral-900/60"
-              >
-                <div className="min-w-0">
-                  <div className="truncate font-medium">{m.title}</div>
-                  <div className="mt-1 text-xs text-neutral-500">
-                    {m.occurredAt.toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}{" "}
-                    · {formatDuration(m.durationSec)} ·{" "}
-                    {m.participants.map((p) => p.name).join(", ")}
+          {meetings.map((m) => {
+            const matchLine = q && m.transcriptLines ? m.transcriptLines[0] : undefined;
+            const href = matchLine
+              ? `/calls/${m.id}?t=${matchLine.startMs}`
+              : `/calls/${m.id}`;
+            return (
+              <li key={m.id}>
+                <Link
+                  href={href}
+                  className="flex items-center justify-between gap-4 px-4 py-4 hover:bg-neutral-900/60"
+                >
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">
+                      {q ? highlightMatch(m.title, q) : m.title}
+                    </div>
+                    <div className="mt-1 text-xs text-neutral-500">
+                      {m.occurredAt.toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}{" "}
+                      · {formatDuration(m.durationSec)} ·{" "}
+                      {m.participants.map((p) => p.name).join(", ")}
+                    </div>
+                    {matchLine && (
+                      <div className="mt-1.5 truncate text-xs text-neutral-400">
+                        <span className="text-neutral-500">{matchLine.speakerName}:</span>{" "}
+                        {highlightMatch(matchLine.text, q!)}
+                      </div>
+                    )}
                   </div>
-                </div>
-                <div className="flex shrink-0 items-center gap-3 text-xs text-neutral-500">
-                  {m._count.highlights > 0 && <span>✦ {m._count.highlights}</span>}
-                  {m._count.actionItems > 0 && <span>☑ {m._count.actionItems}</span>}
-                </div>
-              </Link>
-            </li>
-          ))}
+                  <div className="flex shrink-0 items-center gap-3 text-xs text-neutral-500">
+                    {m._count.highlights > 0 && <span>✦ {m._count.highlights}</span>}
+                    {m._count.actionItems > 0 && <span>☑ {m._count.actionItems}</span>}
+                  </div>
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
