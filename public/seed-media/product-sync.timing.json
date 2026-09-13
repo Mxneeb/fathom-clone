@@ -1,0 +1,163 @@
+{
+    "slug":  "product-sync",
+    "title":  "Product Sync — Q3 Roadmap",
+    "occurredAt":  "2026-09-08T16:00:00.000Z",
+    "participants":  [
+                         {
+                             "name":  "Alex Rivera",
+                             "email":  "alex@ourcompany.com",
+                             "voice":  "David",
+                             "isHost":  true
+                         },
+                         {
+                             "name":  "Priya Nair",
+                             "email":  "priya@ourcompany.com",
+                             "voice":  "Zira",
+                             "isHost":  false
+                         }
+                     ],
+    "totalMs":  134125,
+    "mediaFile":  "product-sync.wav",
+    "lines":  [
+                  {
+                      "index":  0,
+                      "speaker":  "Alex Rivera",
+                      "text":  "Hey Priya, thanks for jumping on. Let\u0027s do a quick sync on the Q3 roadmap before the planning review tomorrow.",
+                      "startMs":  0,
+                      "endMs":  8048
+                  },
+                  {
+                      "index":  1,
+                      "speaker":  "Priya Nair",
+                      "text":  "Sounds good. I pulled together the engineering estimates last night, so I can walk through those.",
+                      "startMs":  8398,
+                      "endMs":  15627
+                  },
+                  {
+                      "index":  2,
+                      "speaker":  "Alex Rivera",
+                      "text":  "Perfect. Let\u0027s start with the search revamp. Where are we on that?",
+                      "startMs":  15977,
+                      "endMs":  22005
+                  },
+                  {
+                      "index":  3,
+                      "speaker":  "Priya Nair",
+                      "text":  "Search is about seventy percent done. The full text indexing is live in staging, but we still need to wire up the ranking logic.",
+                      "startMs":  22355,
+                      "endMs":  31268
+                  },
+                  {
+                      "index":  4,
+                      "speaker":  "Alex Rivera",
+                      "text":  "Okay, and do you think that\u0027s still on track for the September fifteenth launch?",
+                      "startMs":  31618,
+                      "endMs":  36972
+                  },
+                  {
+                      "index":  5,
+                      "speaker":  "Priya Nair",
+                      "text":  "It\u0027s tight, but yes, if we can get one more engineer on ranking for a few days, we should make it.",
+                      "startMs":  37322,
+                      "endMs":  44450
+                  },
+                  {
+                      "index":  6,
+                      "speaker":  "Alex Rivera",
+                      "text":  "I can pull Sam off the billing project for the rest of this week to help with that.",
+                      "startMs":  44800,
+                      "endMs":  49809
+                  },
+                  {
+                      "index":  7,
+                      "speaker":  "Priya Nair",
+                      "text":  "That would help a lot. I\u0027ll send Sam the ranking spec right after this call.",
+                      "startMs":  50159,
+                      "endMs":  55717
+                  },
+                  {
+                      "index":  8,
+                      "speaker":  "Alex Rivera",
+                      "text":  "Great, let\u0027s make that an action item. Now, what about the mobile notifications work?",
+                      "startMs":  56067,
+                      "endMs":  63021
+                  },
+                  {
+                      "index":  9,
+                      "speaker":  "Priya Nair",
+                      "text":  "That one\u0027s blocked. We\u0027re waiting on the design team to finalize the notification preferences screen.",
+                      "startMs":  63371,
+                      "endMs":  70249
+                  },
+                  {
+                      "index":  10,
+                      "speaker":  "Alex Rivera",
+                      "text":  "I\u0027ll follow up with design today and try to get an answer by Thursday.",
+                      "startMs":  70599,
+                      "endMs":  75143
+                  },
+                  {
+                      "index":  11,
+                      "speaker":  "Priya Nair",
+                      "text":  "Perfect, that unblocks us immediately once we have it.",
+                      "startMs":  75493,
+                      "endMs":  79547
+                  },
+                  {
+                      "index":  12,
+                      "speaker":  "Alex Rivera",
+                      "text":  "One more thing, I want to flag that the customer feedback on the new onboarding flow has been really positive.",
+                      "startMs":  79897,
+                      "endMs":  86695
+                  },
+                  {
+                      "index":  13,
+                      "speaker":  "Priya Nair",
+                      "text":  "Oh that\u0027s great to hear, I was worried the extra step might annoy people.",
+                      "startMs":  87045,
+                      "endMs":  91829
+                  },
+                  {
+                      "index":  14,
+                      "speaker":  "Alex Rivera",
+                      "text":  "Nope, actually the opposite, several customers specifically called it out as a highlight in their feedback.",
+                      "startMs":  92179,
+                      "endMs":  99467
+                  },
+                  {
+                      "index":  15,
+                      "speaker":  "Priya Nair",
+                      "text":  "Good, let\u0027s keep an eye on the metrics over the next couple of weeks to confirm the trend holds.",
+                      "startMs":  99817,
+                      "endMs":  105810
+                  },
+                  {
+                      "index":  16,
+                      "speaker":  "Alex Rivera",
+                      "text":  "Agreed. Okay, I think that covers the main items. To summarize, Sam joins ranking work this week, I\u0027ll chase design on notifications by Thursday, and we keep monitoring onboarding metrics.",
+                      "startMs":  106160,
+                      "endMs":  120893
+                  },
+                  {
+                      "index":  17,
+                      "speaker":  "Priya Nair",
+                      "text":  "Sounds right. I\u0027ll send the updated roadmap doc after this call too.",
+                      "startMs":  121243,
+                      "endMs":  126826
+                  },
+                  {
+                      "index":  18,
+                      "speaker":  "Alex Rivera",
+                      "text":  "Perfect, thanks Priya. Talk soon.",
+                      "startMs":  127176,
+                      "endMs":  131375
+                  },
+                  {
+                      "index":  19,
+                      "speaker":  "Priya Nair",
+                      "text":  "Thanks Alex, bye.",
+                      "startMs":  131725,
+                      "endMs":  134125
+                  }
+              ]
+}

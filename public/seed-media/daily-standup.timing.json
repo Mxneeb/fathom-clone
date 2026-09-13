@@ -1,0 +1,85 @@
+﻿{
+    "slug":  "daily-standup",
+    "title":  "Daily Standup",
+    "occurredAt":  "2026-09-11T15:00:00.000Z",
+    "participants":  [
+                         {
+                             "name":  "Alex Rivera",
+                             "email":  "alex@ourcompany.com",
+                             "voice":  "David",
+                             "isHost":  true
+                         },
+                         {
+                             "name":  "Priya Nair",
+                             "email":  "priya@ourcompany.com",
+                             "voice":  "Zira",
+                             "isHost":  false
+                         },
+                         {
+                             "name":  "Sam Okafor",
+                             "email":  "sam@ourcompany.com",
+                             "voice":  "David",
+                             "isHost":  false
+                         }
+                     ],
+    "totalMs":  60327,
+    "mediaFile":  "daily-standup.wav",
+    "lines":  [
+                  {
+                      "index":  0,
+                      "speaker":  "Alex Rivera",
+                      "text":  "Morning everyone, let\u0027s keep this quick. Priya, want to start?",
+                      "startMs":  0,
+                      "endMs":  5964
+                  },
+                  {
+                      "index":  1,
+                      "speaker":  "Priya Nair",
+                      "text":  "Sure. Yesterday I finished the ranking logic for search. Today I\u0027m writing tests and pairing with Sam on the last piece.",
+                      "startMs":  6314,
+                      "endMs":  15377
+                  },
+                  {
+                      "index":  2,
+                      "speaker":  "Sam Okafor",
+                      "text":  "Yep, confirming that. I wrapped up the billing project early, so I\u0027m fully on ranking with Priya today. No blockers on my end.",
+                      "startMs":  15727,
+                      "endMs":  26000
+                  },
+                  {
+                      "index":  3,
+                      "speaker":  "Alex Rivera",
+                      "text":  "Nice, that\u0027s ahead of schedule. Anything you two need from me?",
+                      "startMs":  26350,
+                      "endMs":  31678
+                  },
+                  {
+                      "index":  4,
+                      "speaker":  "Priya Nair",
+                      "text":  "Just a review of the ranking spec once we push it up, probably this afternoon.",
+                      "startMs":  32028,
+                      "endMs":  37507
+                  },
+                  {
+                      "index":  5,
+                      "speaker":  "Alex Rivera",
+                      "text":  "I\u0027ll block time for that at three. On my end, I followed up with design about the notification preferences screen, still waiting to hear back, so that\u0027s still blocked.",
+                      "startMs":  37857,
+                      "endMs":  49385
+                  },
+                  {
+                      "index":  6,
+                      "speaker":  "Sam Okafor",
+                      "text":  "Good to know, I\u0027ll hold off starting the notifications backend until that unblocks.",
+                      "startMs":  49735,
+                      "endMs":  55343
+                  },
+                  {
+                      "index":  7,
+                      "speaker":  "Alex Rivera",
+                      "text":  "Sounds good. Let\u0027s leave it there, thanks team.",
+                      "startMs":  55693,
+                      "endMs":  60327
+                  }
+              ]
+}

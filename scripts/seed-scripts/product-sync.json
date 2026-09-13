@@ -1,0 +1,31 @@
+{
+  "slug": "product-sync",
+  "title": "Product Sync — Q3 Roadmap",
+  "occurredAt": "2026-09-08T16:00:00.000Z",
+  "participants": [
+    { "name": "Alex Rivera", "email": "alex@ourcompany.com", "voice": "David", "isHost": true },
+    { "name": "Priya Nair", "email": "priya@ourcompany.com", "voice": "Zira", "isHost": false }
+  ],
+  "lines": [
+    { "speaker": "Alex Rivera", "text": "Hey Priya, thanks for jumping on. Let's do a quick sync on the Q3 roadmap before the planning review tomorrow." },
+    { "speaker": "Priya Nair", "text": "Sounds good. I pulled together the engineering estimates last night, so I can walk through those." },
+    { "speaker": "Alex Rivera", "text": "Perfect. Let's start with the search revamp. Where are we on that?" },
+    { "speaker": "Priya Nair", "text": "Search is about seventy percent done. The full text indexing is live in staging, but we still need to wire up the ranking logic." },
+    { "speaker": "Alex Rivera", "text": "Okay, and do you think that's still on track for the September fifteenth launch?" },
+    { "speaker": "Priya Nair", "text": "It's tight, but yes, if we can get one more engineer on ranking for a few days, we should make it." },
+    { "speaker": "Alex Rivera", "text": "I can pull Sam off the billing project for the rest of this week to help with that." },
+    { "speaker": "Priya Nair", "text": "That would help a lot. I'll send Sam the ranking spec right after this call." },
+    { "speaker": "Alex Rivera", "text": "Great, let's make that an action item. Now, what about the mobile notifications work?" },
+    { "speaker": "Priya Nair", "text": "That one's blocked. We're waiting on the design team to finalize the notification preferences screen." },
+    { "speaker": "Alex Rivera", "text": "I'll follow up with design today and try to get an answer by Thursday." },
+    { "speaker": "Priya Nair", "text": "Perfect, that unblocks us immediately once we have it." },
+    { "speaker": "Alex Rivera", "text": "One more thing, I want to flag that the customer feedback on the new onboarding flow has been really positive." },
+    { "speaker": "Priya Nair", "text": "Oh that's great to hear, I was worried the extra step might annoy people." },
+    { "speaker": "Alex Rivera", "text": "Nope, actually the opposite, several customers specifically called it out as a highlight in their feedback." },
+    { "speaker": "Priya Nair", "text": "Good, let's keep an eye on the metrics over the next couple of weeks to confirm the trend holds." },
+    { "speaker": "Alex Rivera", "text": "Agreed. Okay, I think that covers the main items. To summarize, Sam joins ranking work this week, I'll chase design on notifications by Thursday, and we keep monitoring onboarding metrics." },
+    { "speaker": "Priya Nair", "text": "Sounds right. I'll send the updated roadmap doc after this call too." },
+    { "speaker": "Alex Rivera", "text": "Perfect, thanks Priya. Talk soon." },
+    { "speaker": "Priya Nair", "text": "Thanks Alex, bye." }
+  ]
+}

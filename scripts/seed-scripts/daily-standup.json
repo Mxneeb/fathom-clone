@@ -1,0 +1,20 @@
+{
+  "slug": "daily-standup",
+  "title": "Daily Standup",
+  "occurredAt": "2026-09-11T15:00:00.000Z",
+  "participants": [
+    { "name": "Alex Rivera", "email": "alex@ourcompany.com", "voice": "David", "isHost": true },
+    { "name": "Priya Nair", "email": "priya@ourcompany.com", "voice": "Zira", "isHost": false },
+    { "name": "Sam Okafor", "email": "sam@ourcompany.com", "voice": "David", "isHost": false }
+  ],
+  "lines": [
+    { "speaker": "Alex Rivera", "text": "Morning everyone, let's keep this quick. Priya, want to start?" },
+    { "speaker": "Priya Nair", "text": "Sure. Yesterday I finished the ranking logic for search. Today I'm writing tests and pairing with Sam on the last piece." },
+    { "speaker": "Sam Okafor", "text": "Yep, confirming that. I wrapped up the billing project early, so I'm fully on ranking with Priya today. No blockers on my end." },
+    { "speaker": "Alex Rivera", "text": "Nice, that's ahead of schedule. Anything you two need from me?" },
+    { "speaker": "Priya Nair", "text": "Just a review of the ranking spec once we push it up, probably this afternoon." },
+    { "speaker": "Alex Rivera", "text": "I'll block time for that at three. On my end, I followed up with design about the notification preferences screen, still waiting to hear back, so that's still blocked." },
+    { "speaker": "Sam Okafor", "text": "Good to know, I'll hold off starting the notifications backend until that unblocks." },
+    { "speaker": "Alex Rivera", "text": "Sounds good. Let's leave it there, thanks team." }
+  ]
+}

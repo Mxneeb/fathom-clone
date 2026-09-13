@@ -34,3 +34,5 @@ yarn-error.log*
 
 # local uploads (not seed data)
 /public/uploads/
+
+/src/generated/prisma

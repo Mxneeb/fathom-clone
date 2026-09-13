@@ -1,0 +1,183 @@
+{
+    "slug":  "sales-discovery",
+    "title":  "Discovery Call — Acme Logistics",
+    "occurredAt":  "2026-09-05T14:30:00.000Z",
+    "participants":  [
+                         {
+                             "name":  "Jordan Blake",
+                             "email":  "jordan@ourcompany.com",
+                             "voice":  "David",
+                             "isHost":  true
+                         },
+                         {
+                             "name":  "Sam Whitfield",
+                             "email":  "sam@acmelogistics.com",
+                             "voice":  "Zira",
+                             "isHost":  false
+                         },
+                         {
+                             "name":  "Chris Doyle",
+                             "email":  "chris@ourcompany.com",
+                             "voice":  "David",
+                             "isHost":  false
+                         }
+                     ],
+    "totalMs":  157278,
+    "mediaFile":  "sales-discovery.wav",
+    "lines":  [
+                  {
+                      "index":  0,
+                      "speaker":  "Jordan Blake",
+                      "text":  "Thanks for making time today, Sam. Before we dive in, I\u0027ve got my colleague Chris from our solutions team here too.",
+                      "startMs":  0,
+                      "endMs":  8703
+                  },
+                  {
+                      "index":  1,
+                      "speaker":  "Sam Whitfield",
+                      "text":  "Great, good to meet you both. We\u0027re excited to learn more.",
+                      "startMs":  9053,
+                      "endMs":  13967
+                  },
+                  {
+                      "index":  2,
+                      "speaker":  "Chris Doyle",
+                      "text":  "Likewise. I\u0027ll mostly be listening in today and can jump in on the technical side if needed.",
+                      "startMs":  14317,
+                      "endMs":  20970
+                  },
+                  {
+                      "index":  3,
+                      "speaker":  "Jordan Blake",
+                      "text":  "Perfect. Sam, can you tell us a bit about what\u0027s driving you to look for a new solution right now?",
+                      "startMs":  21320,
+                      "endMs":  28629
+                  },
+                  {
+                      "index":  4,
+                      "speaker":  "Sam Whitfield",
+                      "text":  "Sure. Our dispatch team is spending way too much time manually tracking shipments across three different spreadsheets. It\u0027s error prone and it doesn\u0027t scale.",
+                      "startMs":  28979,
+                      "endMs":  39707
+                  },
+                  {
+                      "index":  5,
+                      "speaker":  "Jordan Blake",
+                      "text":  "That\u0027s a common pain point we hear. How many shipments are you tracking on a typical week?",
+                      "startMs":  40057,
+                      "endMs":  46330
+                  },
+                  {
+                      "index":  6,
+                      "speaker":  "Sam Whitfield",
+                      "text":  "Somewhere around four hundred, and that number\u0027s been growing about fifteen percent quarter over quarter.",
+                      "startMs":  46680,
+                      "endMs":  53218
+                  },
+                  {
+                      "index":  7,
+                      "speaker":  "Jordan Blake",
+                      "text":  "Got it. And who else is involved in evaluating a new platform besides you?",
+                      "startMs":  53568,
+                      "endMs":  59267
+                  },
+                  {
+                      "index":  8,
+                      "speaker":  "Sam Whitfield",
+                      "text":  "Our ops director, Maria, will need to sign off, and our IT lead will want to review the integration requirements.",
+                      "startMs":  59617,
+                      "endMs":  67555
+                  },
+                  {
+                      "index":  9,
+                      "speaker":  "Chris Doyle",
+                      "text":  "On the integration side, we support a direct API connection as well as a few pre-built connectors for common ERP systems. What are you currently running?",
+                      "startMs":  67905,
+                      "endMs":  78663
+                  },
+                  {
+                      "index":  10,
+                      "speaker":  "Sam Whitfield",
+                      "text":  "We\u0027re on NetSuite for the ERP piece.",
+                      "startMs":  79013,
+                      "endMs":  82081
+                  },
+                  {
+                      "index":  11,
+                      "speaker":  "Chris Doyle",
+                      "text":  "Good news, we have a native NetSuite connector already, so that shouldn\u0027t be a blocker.",
+                      "startMs":  82431,
+                      "endMs":  88535
+                  },
+                  {
+                      "index":  12,
+                      "speaker":  "Jordan Blake",
+                      "text":  "And in terms of timeline, is there a specific date you\u0027re working backward from?",
+                      "startMs":  88885,
+                      "endMs":  94304
+                  },
+                  {
+                      "index":  13,
+                      "speaker":  "Sam Whitfield",
+                      "text":  "Ideally we\u0027d want something live before peak season starts in November, so we\u0027re hoping to make a decision within the next three to four weeks.",
+                      "startMs":  94654,
+                      "endMs":  102936
+                  },
+                  {
+                      "index":  14,
+                      "speaker":  "Jordan Blake",
+                      "text":  "That\u0027s workable on our end. What would you say is the single biggest risk if this doesn\u0027t get solved before November?",
+                      "startMs":  103286,
+                      "endMs":  110774
+                  },
+                  {
+                      "index":  15,
+                      "speaker":  "Sam Whitfield",
+                      "text":  "Honestly, missed shipments during our busiest stretch, which directly hits customer trust and renewal rates.",
+                      "startMs":  111124,
+                      "endMs":  118417
+                  },
+                  {
+                      "index":  16,
+                      "speaker":  "Jordan Blake",
+                      "text":  "That\u0027s really helpful context. Here\u0027s what I\u0027d suggest as next steps: Chris will put together a short technical scoping doc based on the NetSuite integration, and I\u0027ll get you a proposal reflecting the November timeline.",
+                      "startMs":  118767,
+                      "endMs":  133144
+                  },
+                  {
+                      "index":  17,
+                      "speaker":  "Sam Whitfield",
+                      "text":  "That works. Can you also loop in Maria on the proposal email so she has visibility early?",
+                      "startMs":  133494,
+                      "endMs":  140377
+                  },
+                  {
+                      "index":  18,
+                      "speaker":  "Jordan Blake",
+                      "text":  "Absolutely, send over her email and I\u0027ll include her directly.",
+                      "startMs":  140727,
+                      "endMs":  145436
+                  },
+                  {
+                      "index":  19,
+                      "speaker":  "Chris Doyle",
+                      "text":  "I\u0027ll have the scoping doc over by Wednesday at the latest.",
+                      "startMs":  145786,
+                      "endMs":  149630
+                  },
+                  {
+                      "index":  20,
+                      "speaker":  "Sam Whitfield",
+                      "text":  "Perfect, thank you both, this was really helpful.",
+                      "startMs":  149980,
+                      "endMs":  154214
+                  },
+                  {
+                      "index":  21,
+                      "speaker":  "Jordan Blake",
+                      "text":  "Thanks Sam, talk soon.",
+                      "startMs":  154564,
+                      "endMs":  157278
+                  }
+              ]
+}

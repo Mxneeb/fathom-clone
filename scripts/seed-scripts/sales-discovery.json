@@ -1,0 +1,34 @@
+{
+  "slug": "sales-discovery",
+  "title": "Discovery Call — Acme Logistics",
+  "occurredAt": "2026-09-05T14:30:00.000Z",
+  "participants": [
+    { "name": "Jordan Blake", "email": "jordan@ourcompany.com", "voice": "David", "isHost": true },
+    { "name": "Sam Whitfield", "email": "sam@acmelogistics.com", "voice": "Zira", "isHost": false },
+    { "name": "Chris Doyle", "email": "chris@ourcompany.com", "voice": "David", "isHost": false }
+  ],
+  "lines": [
+    { "speaker": "Jordan Blake", "text": "Thanks for making time today, Sam. Before we dive in, I've got my colleague Chris from our solutions team here too." },
+    { "speaker": "Sam Whitfield", "text": "Great, good to meet you both. We're excited to learn more." },
+    { "speaker": "Chris Doyle", "text": "Likewise. I'll mostly be listening in today and can jump in on the technical side if needed." },
+    { "speaker": "Jordan Blake", "text": "Perfect. Sam, can you tell us a bit about what's driving you to look for a new solution right now?" },
+    { "speaker": "Sam Whitfield", "text": "Sure. Our dispatch team is spending way too much time manually tracking shipments across three different spreadsheets. It's error prone and it doesn't scale." },
+    { "speaker": "Jordan Blake", "text": "That's a common pain point we hear. How many shipments are you tracking on a typical week?" },
+    { "speaker": "Sam Whitfield", "text": "Somewhere around four hundred, and that number's been growing about fifteen percent quarter over quarter." },
+    { "speaker": "Jordan Blake", "text": "Got it. And who else is involved in evaluating a new platform besides you?" },
+    { "speaker": "Sam Whitfield", "text": "Our ops director, Maria, will need to sign off, and our IT lead will want to review the integration requirements." },
+    { "speaker": "Chris Doyle", "text": "On the integration side, we support a direct API connection as well as a few pre-built connectors for common ERP systems. What are you currently running?" },
+    { "speaker": "Sam Whitfield", "text": "We're on NetSuite for the ERP piece." },
+    { "speaker": "Chris Doyle", "text": "Good news, we have a native NetSuite connector already, so that shouldn't be a blocker." },
+    { "speaker": "Jordan Blake", "text": "And in terms of timeline, is there a specific date you're working backward from?" },
+    { "speaker": "Sam Whitfield", "text": "Ideally we'd want something live before peak season starts in November, so we're hoping to make a decision within the next three to four weeks." },
+    { "speaker": "Jordan Blake", "text": "That's workable on our end. What would you say is the single biggest risk if this doesn't get solved before November?" },
+    { "speaker": "Sam Whitfield", "text": "Honestly, missed shipments during our busiest stretch, which directly hits customer trust and renewal rates." },
+    { "speaker": "Jordan Blake", "text": "That's really helpful context. Here's what I'd suggest as next steps: Chris will put together a short technical scoping doc based on the NetSuite integration, and I'll get you a proposal reflecting the November timeline." },
+    { "speaker": "Sam Whitfield", "text": "That works. Can you also loop in Maria on the proposal email so she has visibility early?" },
+    { "speaker": "Jordan Blake", "text": "Absolutely, send over her email and I'll include her directly." },
+    { "speaker": "Chris Doyle", "text": "I'll have the scoping doc over by Wednesday at the latest." },
+    { "speaker": "Sam Whitfield", "text": "Perfect, thank you both, this was really helpful." },
+    { "speaker": "Jordan Blake", "text": "Thanks Sam, talk soon." }
+  ]
+}
