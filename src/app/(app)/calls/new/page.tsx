@@ -1,5 +1,6 @@
 "use client";
 
+import { upload } from "@vercel/blob/client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -7,19 +8,39 @@ export default function NewCallPage() {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const loading = status !== null;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!file) return;
-    setLoading(true);
     setError(null);
     try {
-      const form = new FormData();
-      form.append("file", file);
-      form.append("title", title.trim() || file.name);
-      const res = await fetch("/api/meetings", { method: "POST", body: form });
+      // Upload straight from the browser to Vercel Blob storage — never
+      // through our own Serverless Function, which caps request bodies at
+      // ~4.5MB (too small for a real meeting-length recording). See
+      // src/app/api/blob/upload-url/route.ts for the token-issuing side.
+      setStatus("Uploading…");
+      const blob = await upload(file.name, file, {
+        access: "public",
+        handleUploadUrl: "/api/blob/upload-url",
+        onUploadProgress: ({ percentage }) => {
+          setStatus(`Uploading… ${Math.round(percentage)}%`);
+        },
+      });
+
+      setStatus("Transcribing… (can take a moment)");
+      const res = await fetch("/api/meetings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          blobUrl: blob.url,
+          title: title.trim() || file.name,
+          mediaType: file.type.startsWith("video/") ? "VIDEO" : "AUDIO",
+        }),
+      });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? `Upload failed (${res.status})`);
@@ -28,7 +49,7 @@ export default function NewCallPage() {
       router.push(`/calls/${meetingId}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
-      setLoading(false);
+      setStatus(null);
     }
   }
 
@@ -72,7 +93,7 @@ export default function NewCallPage() {
           disabled={!file || loading}
           className="rounded bg-sky-600 px-4 py-2 text-sm font-medium hover:bg-sky-500 disabled:opacity-50"
         >
-          {loading ? "Transcribing… (can take a moment)" : "Upload & transcribe"}
+          {loading ? status : "Upload & transcribe"}
         </button>
         {error && <p className="text-xs text-red-400">{error}</p>}
       </form>

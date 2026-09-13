@@ -29,20 +29,18 @@ export type TranscribedSegment = { startMs: number; endMs: number; text: string 
 // Whisper doesn't do speaker diarization, so every segment is attributed to
 // a single "Speaker" — a real, disclosed limitation, not spoken-for-them
 // fabrication.
-export async function transcribeAudio(
-  fileBuffer: Buffer,
-  filename: string,
-  mimeType: string
-): Promise<TranscribedSegment[]> {
+//
+// Transcribes by URL (Groq fetches the audio itself, server-to-server)
+// rather than by uploading bytes through our own function — the file
+// already lives in Vercel Blob storage by the time this runs (see
+// src/app/api/blob/upload-url/route.ts), specifically so we never need to
+// route large audio through a Vercel Serverless Function's ~4.5MB request
+// body cap.
+export async function transcribeAudio(url: string): Promise<TranscribedSegment[]> {
   const groq = client();
-  const arrayBuffer = fileBuffer.buffer.slice(
-    fileBuffer.byteOffset,
-    fileBuffer.byteOffset + fileBuffer.byteLength
-  ) as ArrayBuffer;
-  const file = new File([arrayBuffer], filename, { type: mimeType });
 
   const result = await groq.audio.transcriptions.create({
-    file,
+    url,
     model: "whisper-large-v3",
     response_format: "verbose_json",
     timestamp_granularities: ["segment"],

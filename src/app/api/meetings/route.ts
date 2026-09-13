@@ -2,31 +2,40 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { transcribeAudio } from "@/lib/ai";
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 
 // The "upload a recording" entry point that stands in for real
 // Zoom/Meet/Teams bot-join capture — see research/fathom-teardown.md
 // "What I'd build first" #7. Real Whisper transcription (src/lib/ai.ts),
 // not a mock; speaker diarization is out of scope so every segment is
 // attributed to a single "Speaker" participant.
+//
+// The client has already uploaded the raw audio directly to Vercel Blob
+// (src/app/api/blob/upload-url/route.ts) before calling this route — we
+// only ever receive the resulting blob URL here (JSON, not multipart),
+// specifically to stay well under Vercel's ~4.5MB Serverless Function
+// request body cap for real meeting-length recordings.
+const bodySchema = z.object({
+  blobUrl: z.string().url(),
+  title: z.string().min(1),
+  mediaType: z.enum(["AUDIO", "VIDEO"]).default("AUDIO"),
+});
+
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const form = await req.formData();
-  const file = form.get("file");
-  const title = form.get("title");
-  if (!(file instanceof File) || typeof title !== "string" || !title.trim()) {
-    return NextResponse.json({ error: "file and title are required" }, { status: 400 });
+  const parsed = bodySchema.safeParse(await req.json());
+  if (!parsed.success) {
+    return NextResponse.json({ error: "blobUrl and title are required" }, { status: 400 });
   }
-
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const mimeType = file.type || "audio/mpeg";
+  const { blobUrl, title, mediaType } = parsed.data;
 
   let segments;
   try {
-    segments = await transcribeAudio(buffer, file.name, mimeType);
+    segments = await transcribeAudio(blobUrl);
   } catch (err) {
     console.error("transcribeAudio failed", err);
     return NextResponse.json(
@@ -43,17 +52,10 @@ export async function POST(req: NextRequest) {
       title: title.trim(),
       occurredAt: new Date(),
       durationSec,
-      mediaUrl: "", // set below once we have the meeting id
-      mediaType: mimeType.startsWith("video/") ? "VIDEO" : "AUDIO",
-      mediaData: buffer,
-      mediaMimeType: mimeType,
+      mediaUrl: blobUrl,
+      mediaType,
       source: "UPLOAD",
     },
-  });
-
-  await prisma.meeting.update({
-    where: { id: meeting.id },
-    data: { mediaUrl: `/api/media/${meeting.id}` },
   });
 
   const speaker = await prisma.participant.create({
