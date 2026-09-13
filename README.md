@@ -10,9 +10,13 @@ fill in real values locally / in your deploy provider's environment settings.
 
 Per the build plan, deliberately faked pieces are called out in the UI itself, not hidden:
 
-- **Recording capture** is stubbed as an upload-a-file (or pick-a-sample) flow — no real
-  Zoom/Meet/Teams bot joins a live call. Everything downstream of that (transcript, summary,
-  action items, highlights, search, sharing) is real.
+- **Recording capture** is stubbed as an upload-a-recording flow (`/calls/new`) — no real
+  Zoom/Meet/Teams bot joins a live call. The seed data (`npm run seed`) covers the "pick a
+  sample" path with 3 fully-populated meetings. Everything downstream of capture is real,
+  including the upload path itself: uploaded audio is genuinely transcribed via Groq-hosted
+  Whisper (no speaker diarization, so each segment is attributed to a single "Speaker" — a
+  disclosed limitation), then summary, action items, highlights, search, and sharing all run
+  unmodified against it.
 - **Live in-meeting state** is skipped entirely for v1.
 - **Team analytics / CRM sync / coaching metrics** are a locked marketing screen, not real
   functionality — mirroring Fathom's own Team Calls / Deals tabs on a personal-tier account.
@@ -20,8 +24,9 @@ Per the build plan, deliberately faked pieces are called out in the UI itself, n
 
 ## Stack
 
-Next.js (App Router, TypeScript) · Postgres (Neon) · Prisma · Auth.js (Google) · Tailwind ·
-Anthropic API · deployed on Vercel.
+Next.js (App Router, TypeScript) · Postgres (Prisma Postgres / any Postgres host) · Prisma ·
+Auth.js (Google OAuth) · Tailwind · Groq API (chat completions + Whisper transcription) ·
+deployed on Vercel.
 
 ## Local setup
 
