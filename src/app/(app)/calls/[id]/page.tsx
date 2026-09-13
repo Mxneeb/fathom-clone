@@ -2,6 +2,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
 import { MeetingPlayer } from "@/components/meeting-player";
+import { SummaryPanel } from "@/components/summary-panel";
+import { ActionItemsPanel } from "@/components/action-items-panel";
 
 export default async function MeetingDetailPage({
   params,
@@ -18,6 +20,8 @@ export default async function MeetingDetailPage({
     include: {
       transcriptLines: { orderBy: { order: "asc" } },
       participants: true,
+      summaries: { orderBy: { generatedAt: "asc" } },
+      actionItems: { orderBy: { createdAt: "asc" } },
     },
   });
 
@@ -52,6 +56,20 @@ export default async function MeetingDetailPage({
           text: l.text,
         }))}
       />
+
+      <div className="mt-8 grid gap-6 md:grid-cols-2">
+        <SummaryPanel meetingId={meeting.id} initialSummaries={meeting.summaries} />
+        <ActionItemsPanel
+          meetingId={meeting.id}
+          initialItems={meeting.actionItems.map((a) => ({
+            id: a.id,
+            text: a.text,
+            owner: a.owner,
+            dueDate: a.dueDate ? a.dueDate.toISOString() : null,
+            done: a.done,
+          }))}
+        />
+      </div>
     </div>
   );
 }
