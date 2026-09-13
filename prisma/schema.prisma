@@ -88,10 +88,15 @@ model Meeting {
   title       String
   occurredAt  DateTime
   durationSec Int
-  mediaUrl    String
-  mediaType   MediaType
-  source      MeetingSource @default(UPLOAD)
-  createdAt   DateTime      @default(now())
+  mediaUrl      String
+  mediaType     MediaType
+  // Only set for UPLOAD meetings whose audio is stored in the DB and
+  // served back via /api/media/[id] — seed meetings use static files
+  // under public/seed-media instead (mediaUrl points there directly).
+  mediaData     Bytes?
+  mediaMimeType String?
+  source        MeetingSource @default(UPLOAD)
+  createdAt     DateTime      @default(now())
 
   participants    Participant[]
   transcriptLines TranscriptLine[]

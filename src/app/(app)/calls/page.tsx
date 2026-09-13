@@ -71,9 +71,17 @@ export default async function CallsPage({
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-8">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex items-center justify-between gap-4">
         <h1 className="text-lg font-semibold">My Calls</h1>
-        <SearchBar defaultValue={q ?? ""} />
+        <div className="flex items-center gap-3">
+          <SearchBar defaultValue={q ?? ""} />
+          <Link
+            href="/calls/new"
+            className="rounded bg-sky-600 px-3 py-1.5 text-xs font-medium hover:bg-sky-500"
+          >
+            + Upload a recording
+          </Link>
+        </div>
       </div>
 
       {meetings.length === 0 ? (

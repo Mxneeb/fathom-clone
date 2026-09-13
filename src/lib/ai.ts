@@ -21,6 +21,47 @@ function client() {
 
 export type TranscriptLineInput = { speakerName: string; text: string };
 
+export type TranscribedSegment = { startMs: number; endMs: number; text: string };
+
+// Real transcription (Groq-hosted Whisper) for uploaded recordings — the
+// "upload a recording" flow that stands in for real Zoom/Meet/Teams bot
+// capture (see research/fathom-teardown.md "What I'd build first", #7).
+// Whisper doesn't do speaker diarization, so every segment is attributed to
+// a single "Speaker" — a real, disclosed limitation, not spoken-for-them
+// fabrication.
+export async function transcribeAudio(
+  fileBuffer: Buffer,
+  filename: string,
+  mimeType: string
+): Promise<TranscribedSegment[]> {
+  const groq = client();
+  const arrayBuffer = fileBuffer.buffer.slice(
+    fileBuffer.byteOffset,
+    fileBuffer.byteOffset + fileBuffer.byteLength
+  ) as ArrayBuffer;
+  const file = new File([arrayBuffer], filename, { type: mimeType });
+
+  const result = await groq.audio.transcriptions.create({
+    file,
+    model: "whisper-large-v3",
+    response_format: "verbose_json",
+    timestamp_granularities: ["segment"],
+  });
+
+  const segments = (result as unknown as { segments?: { start: number; end: number; text: string }[] })
+    .segments;
+  if (!segments || segments.length === 0) {
+    // Fall back to one segment covering the whole clip if the API doesn't
+    // return per-segment timing for some reason.
+    return [{ startMs: 0, endMs: 0, text: result.text.trim() }];
+  }
+  return segments.map((s) => ({
+    startMs: Math.round(s.start * 1000),
+    endMs: Math.round(s.end * 1000),
+    text: s.text.trim(),
+  }));
+}
+
 function transcriptToPlainText(lines: TranscriptLineInput[]) {
   return lines.map((l) => `${l.speakerName}: ${l.text}`).join("\n");
 }
