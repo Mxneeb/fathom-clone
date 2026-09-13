@@ -153,18 +153,27 @@ export async function generateActionItems(
         content:
           "You extract concrete action items (commitments, follow-ups, tasks) from meeting " +
           "transcripts. Only include real commitments actually made in the transcript — do " +
-          "not invent tasks. Call the record_action_items tool exactly once with your findings.",
+          "not invent tasks. Call the record_action_items tool with your findings — if the " +
+          "transcript genuinely contains no action items, call it with an empty actionItems " +
+          "array rather than not calling it at all.",
       },
       { role: "user", content: `Meeting transcript:\n\n${transcript}` },
     ],
     tools: [ACTION_ITEMS_TOOL],
-    tool_choice: { type: "function", function: { name: "record_action_items" } },
+    // Not forced ("auto", not a required tool_choice): a transcript can
+    // genuinely have zero action items, and some models refuse to call a
+    // *required* tool with an empty result, which Groq then rejects as
+    // "tool_choice is required, but model did not call a tool" — a real
+    // 400 we hit in production on a short, action-item-free transcript.
+    tool_choice: "auto",
   });
 
   const toolCall = completion.choices[0]?.message?.tool_calls?.[0];
   if (!toolCall || toolCall.type !== "function") {
-    throw new Error("Groq response contained no tool call");
+    // The model chose not to call the tool at all — treat that as "no
+    // action items found" rather than an error.
+    return [];
   }
   const args = JSON.parse(toolCall.function.arguments) as { actionItems: GeneratedActionItem[] };
-  return args.actionItems;
+  return args.actionItems ?? [];
 }

@@ -20,10 +20,12 @@ export function ActionItemsPanel({
   const [items, setItems] = useState(initialItems);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
 
   async function generate() {
     setLoading(true);
     setError(null);
+    setInfo(null);
     try {
       const res = await fetch(`/api/meetings/${meetingId}/action-items`, { method: "POST" });
       if (!res.ok) {
@@ -31,7 +33,11 @@ export function ActionItemsPanel({
         throw new Error(body.error ?? `Request failed (${res.status})`);
       }
       const { actionItems } = await res.json();
-      setItems((prev) => [...prev, ...actionItems]);
+      if (actionItems.length === 0) {
+        setInfo("No action items found in this transcript.");
+      } else {
+        setItems((prev) => [...prev, ...actionItems]);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -100,6 +106,7 @@ export function ActionItemsPanel({
           ))}
         </ul>
       )}
+      {info && <p className="mt-2 text-xs text-neutral-500">{info}</p>}
       {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
     </div>
   );
