@@ -30,17 +30,24 @@ export type TranscribedSegment = { startMs: number; endMs: number; text: string 
 // a single "Speaker" — a real, disclosed limitation, not spoken-for-them
 // fabrication.
 //
-// Transcribes by URL (Groq fetches the audio itself, server-to-server)
-// rather than by uploading bytes through our own function — the file
-// already lives in Vercel Blob storage by the time this runs (see
-// src/app/api/blob/upload-url/route.ts), specifically so we never need to
-// route large audio through a Vercel Serverless Function's ~4.5MB request
-// body cap.
-export async function transcribeAudio(url: string): Promise<TranscribedSegment[]> {
+// Takes the already-compressed buffer (src/lib/audio.ts transcodes the
+// original upload to a small mono/low-bitrate mp3 first) and uploads it
+// directly to Groq — not by URL, since Groq's own 25MB file-size cap means
+// we need to guarantee the *compressed* bytes are what gets sent, not have
+// Groq fetch the original (potentially much larger) upload itself.
+export async function transcribeAudio(
+  buffer: Buffer,
+  filename: string
+): Promise<TranscribedSegment[]> {
   const groq = client();
+  const arrayBuffer = buffer.buffer.slice(
+    buffer.byteOffset,
+    buffer.byteOffset + buffer.byteLength
+  ) as ArrayBuffer;
+  const file = new File([arrayBuffer], filename, { type: "audio/mpeg" });
 
   const result = await groq.audio.transcriptions.create({
-    url,
+    file,
     model: "whisper-large-v3",
     response_format: "verbose_json",
     timestamp_granularities: ["segment"],

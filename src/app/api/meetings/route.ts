@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { transcribeAudio } from "@/lib/ai";
+import { compressAudioForTranscription } from "@/lib/audio";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -15,6 +16,11 @@ import { z } from "zod";
 // only ever receive the resulting blob URL here (JSON, not multipart),
 // specifically to stay well under Vercel's ~4.5MB Serverless Function
 // request body cap for real meeting-length recordings.
+//
+// Transcoding + a long Whisper call can take a while for a real
+// meeting-length recording — extend past Next.js/Vercel's default.
+export const maxDuration = 300;
+
 const bodySchema = z.object({
   blobUrl: z.string().url(),
   title: z.string().min(1),
@@ -35,9 +41,15 @@ export async function POST(req: NextRequest) {
 
   let segments;
   try {
-    segments = await transcribeAudio(blobUrl);
+    // Groq's Whisper API caps files at 25MB — a real meeting recording
+    // routinely exceeds that raw, so transcode to a small mono/low-bitrate
+    // mp3 first (src/lib/audio.ts) and send Groq *those* bytes, not the
+    // original. mediaUrl (below) still points at the original, full-quality
+    // upload for playback — only the transcription input is compressed.
+    const { buffer, filename } = await compressAudioForTranscription(blobUrl);
+    segments = await transcribeAudio(buffer, filename);
   } catch (err) {
-    console.error("transcribeAudio failed", err);
+    console.error("transcription pipeline failed", err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "transcription failed" },
       { status: 502 }
