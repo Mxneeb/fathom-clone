@@ -32,6 +32,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     process.env.NODE_ENV === "production"
       ? [Google]
       : [Google, devBypassProvider],
+  trustHost: true,
   // JWT sessions: the Credentials (dev-bypass) provider requires this — a
   // database session strategy silently never persists a session row for
   // Credentials-based sign-in. The Prisma adapter is still used for

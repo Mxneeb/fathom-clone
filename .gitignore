@@ -36,3 +36,6 @@ yarn-error.log*
 /public/uploads/
 
 /src/generated/prisma
+
+.vercel
+.env*
