@@ -4,6 +4,7 @@
 import { appendFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { redactDeep } from "./redact.mjs";
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 const logsDir = join(projectDir, ".agent-logs");
@@ -36,8 +37,8 @@ try {
     // Known field per current Claude Code docs; kept even if undefined so the
     // shape is consistent, plus the full raw hook payload as a fallback so we
     // never silently lose the record if the field name is wrong.
-    content: input.user_input ?? input.prompt ?? null,
-    raw: input,
+    content: redactDeep(input.user_input ?? input.prompt ?? null),
+    raw: redactDeep(input),
   };
 
   mkdirSync(logsDir, { recursive: true });

@@ -3,6 +3,7 @@
 // Deliberately fails open (always exits 0) so a logging problem never blocks the session.
 import { appendFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { redactDeep } from "./redact.mjs";
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 const logsDir = join(projectDir, ".agent-logs");
@@ -32,9 +33,9 @@ try {
     role: "assistant",
     session_id: sessionId,
     prompt_id: input.prompt_id ?? null,
-    content: input.last_assistant_message ?? input.message ?? null,
+    content: redactDeep(input.last_assistant_message ?? input.message ?? null),
     stop_reason: input.stop_reason ?? null,
-    raw: input,
+    raw: redactDeep(input),
   };
 
   mkdirSync(logsDir, { recursive: true });
