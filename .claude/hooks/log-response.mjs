@@ -4,6 +4,7 @@
 import { appendFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { redactDeep } from "./redact.mjs";
+import { appendLogEntry, extractLatestModel } from "./session-log.mjs";
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 const logsDir = join(projectDir, ".agent-logs");
@@ -41,6 +42,16 @@ try {
   mkdirSync(logsDir, { recursive: true });
   const logFile = join(logsDir, `session-${sessionId}.jsonl`);
   appendFileSync(logFile, JSON.stringify(entry) + "\n", "utf8");
+
+  // Also write the prompt+final-response-only markdown log the assignment
+  // spec asks for. The transcript is complete for this turn by the time
+  // Stop fires, so the model name read off it here is authoritative.
+  appendLogEntry({
+    sessionId,
+    type: "RESPONSE",
+    text: entry.content,
+    model: extractLatestModel(input.transcript_path),
+  });
 } catch (err) {
   try {
     mkdirSync(logsDir, { recursive: true });

@@ -5,6 +5,7 @@ import { appendFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { redactDeep } from "./redact.mjs";
+import { appendLogEntry, extractLatestModel } from "./session-log.mjs";
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 const logsDir = join(projectDir, ".agent-logs");
@@ -44,6 +45,17 @@ try {
   mkdirSync(logsDir, { recursive: true });
   const logFile = join(logsDir, `session-${sessionId}.jsonl`);
   appendFileSync(logFile, JSON.stringify(entry) + "\n", "utf8");
+
+  // Also write the prompt+final-response-only markdown log the assignment
+  // spec asks for (per-session file, YAML front-matter, LOG_ENTRY blocks).
+  // Model isn't known yet at prompt time, so fall back to the last model
+  // seen in this session's transcript so far.
+  appendLogEntry({
+    sessionId,
+    type: "PROMPT",
+    text: entry.content,
+    model: extractLatestModel(input.transcript_path),
+  });
 } catch (err) {
   try {
     mkdirSync(logsDir, { recursive: true });
