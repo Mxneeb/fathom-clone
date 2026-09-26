@@ -144,19 +144,24 @@ export async function separateSpeakers(meetingId: string) {
     }));
     const participantByLabel = new Map(labels.map((label, i) => [label, participants[i]]));
 
-    await prisma.$transaction([
-      prisma.transcriptLine.updateMany({ where: { meetingId }, data: { participantId: null } }),
-      prisma.participant.deleteMany({ where: { meetingId } }),
-      prisma.participant.createMany({ data: participants }),
-      ...labels.map((label) => {
-        const p = participantByLabel.get(label)!;
-        return prisma.transcriptLine.updateMany({
-          where: { id: { in: lines.filter((l) => labelByLine.get(l.id) === label).map((l) => l.id) } },
-          data: { speakerName: p.name, participantId: p.id },
-        });
-      }),
-      prisma.meeting.update({ where: { id: meetingId }, data: { speakerStatus: "DONE", speakerError: null } }),
-    ]);
+    // One write per speaker, with room over the 5s default: a meeting with
+    // many speakers is a dozen round trips, and slower networks exceed it.
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.transcriptLine.updateMany({ where: { meetingId }, data: { participantId: null } });
+        await tx.participant.deleteMany({ where: { meetingId } });
+        await tx.participant.createMany({ data: participants });
+        for (const label of labels) {
+          const p = participantByLabel.get(label)!;
+          await tx.transcriptLine.updateMany({
+            where: { id: { in: lines.filter((l) => labelByLine.get(l.id) === label).map((l) => l.id) } },
+            data: { speakerName: p.name, participantId: p.id },
+          });
+        }
+        await tx.meeting.update({ where: { id: meetingId }, data: { speakerStatus: "DONE", speakerError: null } });
+      },
+      { timeout: 30_000 }
+    );
   } catch (err) {
     console.error("separateSpeakers failed", err);
     await prisma.meeting.update({
