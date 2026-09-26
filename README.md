@@ -1,45 +1,91 @@
-# Fathom Clone
+# Cue
 
-A scoped rebuild of the core Fathom.video experience, built against the priority order in
-[`research/fathom-teardown.md`](research/fathom-teardown.md) (`## What I'd build first`).
+**Every meeting, mapped to the moment.** Cue turns a meeting recording into a map of who said what and
+when. The summary, the action items and your highlights are pinned to the second they happened, so
+one click takes you to the moment.
 
-**This is a public repository.** No secrets are committed — copy `.env.example` to `.env` and
-fill in real values locally / in your deploy provider's environment settings.
+**Live:** https://fathom-clone-wheat.vercel.app. Click **Try the demo**: no account needed. You get your
+own private copy of four sample meetings, including an eight-person, nine-minute planning call.
 
-## What's real vs. stubbed
+This started as a scoped rebuild of [Fathom](https://fathom.video) (the research and the original build
+plan are in [`research/fathom-teardown.md`](research/fathom-teardown.md)). The interface has since been
+redesigned from scratch around an idea of its own. The backend is the same real one: Postgres,
+Whisper transcription and LLM summaries.
 
-Per the build plan, deliberately faked pieces are called out in the UI itself, not hidden:
+## The idea
 
-- **Recording capture** is stubbed as an upload-a-recording flow (`/calls/new`) — no real
-  Zoom/Meet/Teams bot joins a live call. The seed data (`npm run seed`) covers the "pick a
-  sample" path with 3 fully-populated meetings. Everything downstream of capture is real,
-  including the upload path itself: uploaded audio is genuinely transcribed via Groq-hosted
-  Whisper (no speaker diarization, so each segment is attributed to a single "Speaker" — a
-  disclosed limitation), then summary, action items, highlights, search, and sharing all run
-  unmodified against it.
-- **Live in-meeting state** is skipped entirely for v1.
-- **Team analytics / CRM sync / coaching metrics** are a locked marketing screen, not real
-  functionality — mirroring Fathom's own Team Calls / Deals tabs on a personal-tier account.
-- **Onboarding** is reduced to real Google OAuth login only.
+Fathom treats a meeting as a video with a transcript beside it. That works for a two-person call and
+falls apart for the case that matters: eight people for an hour. There you need to know *who* drove
+the conversation, *where* the decision happened, and *which* commitments came out of it, without
+watching the whole thing.
+
+So every meeting in Cue opens on a **timeline map**:
+
+- **One lane per speaker**, with every line they spoke drawn in their colour and their share of the
+  talking beside their name. You can see at a glance who dominated, who went quiet, and where the
+  heated stretch was.
+- **Moments pinned in time**: highlights (◆) and action items (●) sit above the lanes where they
+  happened. Hover to read one, click to hear it.
+- **A playhead across everything**. Click anywhere on the map to jump there.
+
+Everything else hangs off that same clock:
+
+- **Brief**: an AI summary (General, or a Sales/BANT read), action items with their owner, due date
+  and a timestamp that jumps to where each was committed, and highlights with notes.
+- **Transcript**: grouped into speaker turns, synced to playback, following along until you scroll
+  away (then "Back to now"), with find-in-transcript for long calls.
+- **Player bar**: ±15s, scrubber, 1×–2× speed, and keyboard control (space, ←/→, **H** to
+  highlight the current moment).
+- **Search** returns every matching *moment* across all meetings, grouped by meeting, each opening at
+  that exact second.
+- **Sharing**: one link, view-only, no sign-in needed to open it.
+
+Visually it's "warm paper": a light, warm ground, ink-dark type, Newsreader for headings and summary
+prose, Geist for the interface, and a single burnt-orange accent used for the playhead and anything
+that means "now". It's deliberately calm, and deliberately unlike the dark video-tool look.
+
+## What's real and what isn't
+
+- **Real:** accounts (Google OAuth, or a throwaway demo guest), Postgres storage, upload of real
+  recordings, **Whisper transcription** (via Groq), **LLM summaries and action-item extraction**
+  (Groq, `openai/gpt-oss-120b`, with the model saying which transcript line each commitment came
+  from), highlights, full-text search and share links.
+- **Stubbed, on purpose:** there is no bot that joins live Zoom, Meet or Teams calls. That's
+  real-time audio infrastructure and out of scope, so you upload a recording instead, as Fathom's own
+  onboarding test call does. The upload page says so.
+- **Honest limit:** Whisper doesn't tell voices apart, so an uploaded recording appears as a single
+  speaker. The sample meetings are synthesized speech with exact per-speaker timing (see below),
+  which is how the multi-speaker timeline is demonstrated.
+- **Left out:** team analytics, CRM sync, coaching, calendar integration and live in-meeting notes.
+  The time went into making one meeting as navigable as possible instead.
+
+## Sample data
+
+Four sample meetings live under a placeholder account as templates. Every new account, whether a
+Google sign-up or a demo guest, gets its own copy, so nobody starts on an empty list and nobody's
+edits reach anyone else. Demo guests are removed, with everything they own, after three days.
+
+The audio is real synthesized speech (Windows SAPI voices, pitch- and rate-varied so eight speakers
+stay distinguishable) with transcript timing measured from the synthesis itself, not guessed. See
+`scripts/synthesize-seed-audio.ps1`, `scripts/seed-scripts/` and `scripts/encode-seed-audio.mjs`.
 
 ## Stack
 
-Next.js (App Router, TypeScript) · Postgres (Prisma Postgres / any Postgres host) · Prisma ·
-Auth.js (Google OAuth) · Tailwind · Groq API (chat completions + Whisper transcription) ·
-deployed on Vercel.
+Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · Prisma 7 + Postgres (Prisma Postgres) ·
+Auth.js · Groq (Whisper + chat) · Vercel Blob for uploads · deployed on Vercel.
 
-## Local setup
+## Running it locally
 
 ```bash
 npm install
 cp .env.example .env   # fill in real values
-npx prisma migrate dev
-npx prisma db seed
+npx prisma migrate deploy --config prisma7.config.ts
+npm run seed
 npm run dev
 ```
 
-## Agent logs
+## How it was built
 
-This project was built with Claude Code. `.agent-logs/` contains a raw, per-turn record of the
-prompts and responses used to build it, captured via Claude Code hooks and committed
-incrementally alongside the corresponding code changes.
+Built with Claude Code. `.agent-logs/` holds the prompt-and-response record, captured automatically
+by hooks in `.claude/settings.json` and committed alongside the code. `CAPTURE-TEST.md` documents how
+that capture works and how it was verified, including what didn't work first.
