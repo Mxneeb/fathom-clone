@@ -203,20 +203,17 @@ function readTranscriptTail(transcriptPath, bytes = 4 * 1024 * 1024) {
   }
 }
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
 // UserPromptSubmit also fires for messages the harness injects (subagent
-// reports, background-task notifications) with an identical payload. Only a
-// prompt the user actually sent is recorded in the transcript as a
-// human-origin user entry — written just before the hook runs, so a short
-// retry covers the race.
-export async function isUserTypedPrompt(transcriptPath, promptId) {
-  if (!promptId) return true;
-  for (let attempt = 0; attempt < 5; attempt++) {
-    if (readTranscriptTail(transcriptPath).some((e) => isHumanPrompt(e) && e.promptId === promptId)) return true;
-    await sleep(200);
-  }
-  return false;
+// reports, background-task notifications) with a payload identical to a
+// typed prompt. The transcript can't tell them apart reliably: interactive
+// sessions write the typed prompt before the hook runs, headless ones only
+// after it. What is consistent is the wrapper the harness puts around its
+// own messages. An unknown future wrapper fails safe — logged as typed.
+const INJECTED_WRAPPERS = ["<task-notification>", "<agent-message "];
+
+export function isUserTypedPrompt(prompt) {
+  const head = String(prompt ?? "").trimStart();
+  return !INJECTED_WRAPPERS.some((w) => head.startsWith(w));
 }
 
 function isToolResult(entry) {

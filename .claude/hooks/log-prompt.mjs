@@ -36,7 +36,7 @@ try {
 
   const sessionId = input.session_id || "unknown-session";
   const promptId = input.prompt_id ?? null;
-  const typed = await isUserTypedPrompt(input.transcript_path, promptId);
+  const typed = isUserTypedPrompt(input.prompt);
   const entry = {
     timestamp: new Date().toISOString(),
     role: "user",
