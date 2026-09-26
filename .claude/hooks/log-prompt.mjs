@@ -5,7 +5,12 @@ import { appendFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { redactDeep } from "./redact.mjs";
-import { appendLogEntry, extractLatestModel } from "./session-log.mjs";
+import {
+  appendLogEntry,
+  extractLatestModel,
+  getSessionMeta,
+  recoverTurnText,
+} from "./session-log.mjs";
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 const logsDir = join(projectDir, ".agent-logs");
@@ -46,6 +51,20 @@ try {
   const logFile = join(logsDir, `session-${sessionId}.jsonl`);
   appendFileSync(logFile, JSON.stringify(entry) + "\n", "utf8");
 
+  // If the previous prompt never got a RESPONSE, its turn was interrupted
+  // (Stop doesn't fire then) — log whatever it produced before moving on.
+  const pending = getSessionMeta(sessionId)?.pending_prompt_id;
+  if (pending) {
+    const recovered = recoverTurnText(input.transcript_path, pending);
+    appendLogEntry({
+      sessionId,
+      type: "RESPONSE",
+      text: redactDeep(recovered.text) ?? "(no response text was produced before the interruption)",
+      model: recovered.model,
+      status: "interrupted (Stop hook did not fire; text recovered from session transcript)",
+    });
+  }
+
   // Also write the prompt+final-response-only markdown log the assignment
   // spec asks for (per-session file, YAML front-matter, LOG_ENTRY blocks).
   // Model isn't known yet at prompt time, so fall back to the last model
@@ -55,6 +74,7 @@ try {
     type: "PROMPT",
     text: entry.content,
     model: extractLatestModel(input.transcript_path),
+    promptId: input.prompt_id ?? null,
   });
 } catch (err) {
   try {

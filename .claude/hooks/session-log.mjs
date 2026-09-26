@@ -85,15 +85,46 @@ function rewriteFrontMatter(filename, meta) {
   writeFileSync(p, content, "utf8");
 }
 
-// type: "PROMPT" | "RESPONSE"
-export function appendLogEntry({ sessionId, type, text, model }) {
+// A question the agent asks via AskUserQuestion, and the user's answer, are
+// a real exchange mid-turn — logged as RESPONSE (question) + PROMPT (answer).
+export function formatQuestions(questions = []) {
+  return questions
+    .map((q) => {
+      const opts = (q.options ?? [])
+        .map((o) => `  - ${o.label}${o.description ? `: ${o.description}` : ""}`)
+        .join("\n");
+      return `[Asked via AskUserQuestion] ${q.question}${opts ? `\n${opts}` : ""}`;
+    })
+    .join("\n\n");
+}
+
+export function formatAnswers(answers = {}) {
+  const pairs = Object.entries(answers);
+  if (pairs.length === 1) return String(pairs[0][1]);
+  return pairs.map(([q, a]) => `Q: ${q}\nA: ${a}`).join("\n\n");
+}
+
+export function getSessionMeta(sessionId) {
+  return loadIndex()[sessionId] ?? null;
+}
+
+// type: "PROMPT" | "RESPONSE". `status` marks entries that aren't a plain
+// typed prompt / end-of-turn response (interrupted turns, AskUserQuestion).
+// `pending_prompt_id` tracks the typed prompt whose turn is still open, so an
+// interrupted turn can be recovered; a mid-turn Q&A leaves it open.
+export function appendLogEntry({ sessionId, type, text, model, promptId, status, keepPending = false }) {
   ensureSession(sessionId);
   const idx = loadIndex();
   const current = idx[sessionId];
 
   const now = new Date().toISOString();
-  if (type === "PROMPT") current.total_exchanges += 1;
-  current.last_prompt_time = now;
+  if (type === "PROMPT") {
+    current.total_exchanges += 1;
+    current.last_prompt_time = now;
+    if (promptId !== undefined) current.pending_prompt_id = promptId;
+  } else if (!keepPending) {
+    current.pending_prompt_id = null;
+  }
   if (model) current.last_model = model;
   saveIndex(idx);
 
@@ -101,10 +132,86 @@ export function appendLogEntry({ sessionId, type, text, model }) {
   const num = current.total_exchanges;
   const modelTag = model || current.last_model || "unknown";
   const body = text && text.length > 0 ? text : "(empty)";
-  const block = `\n[LOG_ENTRY type=${type} num=${num} session=${shortId}]\ntimestamp: ${now}\nmodel: ${modelTag}\n\n${body}\n\n`;
+  const statusLine = status ? `status: ${status}\n` : "";
+  const block = `\n[LOG_ENTRY type=${type} num=${num} session=${shortId}]\ntimestamp: ${now}\nmodel: ${modelTag}\n${statusLine}\n${body}\n\n`;
   appendFileSync(join(logsDir, current.filename), block, "utf8");
   rewriteFrontMatter(current.filename, current);
   return { filename: current.filename, num };
+}
+
+function readTranscript(transcriptPath) {
+  if (!transcriptPath || !existsSync(transcriptPath)) return [];
+  return readFileSync(transcriptPath, "utf8")
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => {
+      try {
+        return JSON.parse(line);
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
+}
+
+function isToolResult(entry) {
+  const content = entry.message?.content;
+  return Array.isArray(content) && content.some((c) => c.type === "tool_result");
+}
+
+export function isHumanPrompt(entry) {
+  return entry.type === "user" && entry.origin?.kind === "human" && !isToolResult(entry);
+}
+
+export function isQuestionAnswer(entry) {
+  return entry.type === "user" && isToolResult(entry) && Boolean(entry.toolUseResult?.answers);
+}
+
+// Text of the assistant message that carried this AskUserQuestion call — the
+// explanation the user read right before answering. Matched by tool_use_id
+// so a transcript that hasn't flushed yet can't yield an older question.
+export function textBeforeQuestion(transcriptPath, toolUseId) {
+  const entries = readTranscript(transcriptPath);
+  const carrier = entries.find(
+    (e) =>
+      e.type === "assistant" &&
+      Array.isArray(e.message?.content) &&
+      e.message.content.some((b) => b.type === "tool_use" && b.id === toolUseId)
+  );
+  const messageId = carrier?.message?.id;
+  if (!messageId) return null;
+  const texts = entries
+    .filter((e) => e.type === "assistant" && e.message?.id === messageId && Array.isArray(e.message.content))
+    .flatMap((e) => e.message.content.filter((b) => b.type === "text" && b.text?.trim()).map((b) => b.text));
+  return texts.length ? texts.join("\n\n") : null;
+}
+
+// The Stop hook never fires for a turn the user interrupts, so that turn's
+// response would otherwise be missing from the log entirely. Assistant
+// entries in the transcript carry no promptId, so the turn is located
+// positionally: everything after the human prompt with this promptId, up to
+// the next human prompt. All text produced before the interruption is kept.
+export function recoverTurnText(transcriptPath, promptId) {
+  const entries = readTranscript(transcriptPath);
+  const start = entries.findIndex((e) => isHumanPrompt(e) && e.promptId === promptId);
+  if (start === -1) return { text: null, model: null };
+  let texts = [];
+  let model = null;
+  for (let i = start + 1; i < entries.length; i++) {
+    const e = entries[i];
+    if (isHumanPrompt(e)) break;
+    // Text before an answered question was already logged with that Q&A.
+    if (isQuestionAnswer(e)) {
+      texts = [];
+      continue;
+    }
+    if (e.type !== "assistant" || !Array.isArray(e.message?.content)) continue;
+    if (e.message.model) model = e.message.model;
+    for (const block of e.message.content) {
+      if (block.type === "text" && block.text?.trim()) texts.push(block.text);
+    }
+  }
+  return { text: texts.length ? texts.join("\n\n") : null, model };
 }
 
 // Best-effort: read the session transcript (path Claude Code hands the Stop

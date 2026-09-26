@@ -15,6 +15,8 @@ const WHOLE_MATCH_PATTERNS = [
   /\bAKIA[0-9A-Z]{16}\b/g, // AWS access key id
   /\bxox[baprs]-[0-9A-Za-z-]{10,}\b/g, // Slack tokens
   /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/g, // JWTs
+  /\bGOCSPX-[A-Za-z0-9_-]{20,}/g, // Google OAuth client secret
+  /\bvercel_blob_rw_[A-Za-z0-9_]{16,}\b/g, // Vercel Blob read-write token
 ];
 
 // Password-in-connection-string: keep the scheme/user and "@", mask only
