@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // Claude Code Stop hook: appends the raw assistant response to .agent-logs/.
+// Logged fully raw — no redaction (the user's call; see CAPTURE-TEST.md).
 // Deliberately fails open (always exits 0) so a logging problem never blocks the session.
 import { appendFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { redactDeep } from "./redact.mjs";
 import { appendLogEntry, extractLatestModel } from "./session-log.mjs";
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
@@ -34,9 +34,9 @@ try {
     role: "assistant",
     session_id: sessionId,
     prompt_id: input.prompt_id ?? null,
-    content: redactDeep(input.last_assistant_message ?? input.message ?? null),
+    content: input.last_assistant_message ?? input.message ?? null,
     stop_reason: input.stop_reason ?? null,
-    raw: redactDeep(input),
+    raw: input,
   };
 
   mkdirSync(logsDir, { recursive: true });

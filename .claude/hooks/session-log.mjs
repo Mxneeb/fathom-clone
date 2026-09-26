@@ -5,7 +5,17 @@
 // thinking, no tool calls, no intermediate steps) — matching that spec's
 // format exactly. This sits alongside the existing raw JSONL capture
 // (session-<id>.jsonl), which stays as the fuller audit trail.
-import { existsSync, readFileSync, writeFileSync, appendFileSync, mkdirSync } from "node:fs";
+import {
+  existsSync,
+  readFileSync,
+  writeFileSync,
+  appendFileSync,
+  mkdirSync,
+  openSync,
+  readSync,
+  closeSync,
+  fstatSync,
+} from "node:fs";
 import { join } from "node:path";
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
@@ -135,13 +145,31 @@ export function appendLogEntry({ sessionId, type, text, model, promptId, status,
   const statusLine = status ? `status: ${status}\n` : "";
   const block = `\n[LOG_ENTRY type=${type} num=${num} session=${shortId}]\ntimestamp: ${now}\nmodel: ${modelTag}\n${statusLine}\n${body}\n\n`;
   appendFileSync(join(logsDir, current.filename), block, "utf8");
+  if (type === "RESPONSE" && model) fillUnknownPromptModel(current.filename, num, shortId, model);
   rewriteFrontMatter(current.filename, current);
   return { filename: current.filename, num };
 }
 
-function readTranscript(transcriptPath) {
-  if (!transcriptPath || !existsSync(transcriptPath)) return [];
-  return readFileSync(transcriptPath, "utf8")
+// The first prompt of a new session is logged before any model has spoken,
+// so its model line reads "unknown"; the matching response knows it.
+function fillUnknownPromptModel(filename, num, shortId, model) {
+  const p = join(logsDir, filename);
+  const content = readFileSync(p, "utf8");
+  const header = `[LOG_ENTRY type=PROMPT num=${num} session=${shortId}]\n`;
+  const at = content.lastIndexOf(header);
+  if (at === -1) return;
+  const modelLineAt = content.indexOf("\nmodel: unknown\n", at);
+  const nextEntryAt = content.indexOf("[LOG_ENTRY", at + header.length);
+  if (modelLineAt === -1 || (nextEntryAt !== -1 && modelLineAt > nextEntryAt)) return;
+  writeFileSync(
+    p,
+    content.slice(0, modelLineAt) + `\nmodel: ${model}\n` + content.slice(modelLineAt + "\nmodel: unknown\n".length),
+    "utf8"
+  );
+}
+
+function parseLines(text) {
+  return text
     .split("\n")
     .filter(Boolean)
     .map((line) => {
@@ -152,6 +180,43 @@ function readTranscript(transcriptPath) {
       }
     })
     .filter(Boolean);
+}
+
+function readTranscript(transcriptPath) {
+  if (!transcriptPath || !existsSync(transcriptPath)) return [];
+  return parseLines(readFileSync(transcriptPath, "utf8"));
+}
+
+// Transcripts grow to tens of MB; hooks that only need recent entries read
+// the tail. The first (likely partial) line is dropped by the JSON parse.
+function readTranscriptTail(transcriptPath, bytes = 4 * 1024 * 1024) {
+  if (!transcriptPath || !existsSync(transcriptPath)) return [];
+  const fd = openSync(transcriptPath, "r");
+  try {
+    const size = fstatSync(fd).size;
+    const start = Math.max(0, size - bytes);
+    const buf = Buffer.alloc(size - start);
+    readSync(fd, buf, 0, buf.length, start);
+    return parseLines(buf.toString("utf8"));
+  } finally {
+    closeSync(fd);
+  }
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// UserPromptSubmit also fires for messages the harness injects (subagent
+// reports, background-task notifications) with an identical payload. Only a
+// prompt the user actually sent is recorded in the transcript as a
+// human-origin user entry — written just before the hook runs, so a short
+// retry covers the race.
+export async function isUserTypedPrompt(transcriptPath, promptId) {
+  if (!promptId) return true;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    if (readTranscriptTail(transcriptPath).some((e) => isHumanPrompt(e) && e.promptId === promptId)) return true;
+    await sleep(200);
+  }
+  return false;
 }
 
 function isToolResult(entry) {
@@ -218,22 +283,9 @@ export function recoverTurnText(transcriptPath, promptId) {
 // hook) and pull the most recent assistant message's model name, so a
 // mid-build model switch is visible per the spec's requirement.
 export function extractLatestModel(transcriptPath) {
-  if (!transcriptPath || !existsSync(transcriptPath)) return null;
   try {
-    const lines = readFileSync(transcriptPath, "utf8").trim().split("\n");
-    let model = null;
-    for (const line of lines) {
-      let entry;
-      try {
-        entry = JSON.parse(line);
-      } catch {
-        continue;
-      }
-      if (entry.type === "assistant" && entry.message?.model) {
-        model = entry.message.model;
-      }
-    }
-    return model;
+    return readTranscriptTail(transcriptPath).findLast((e) => e.type === "assistant" && e.message?.model)?.message
+      .model ?? null;
   } catch {
     return null;
   }

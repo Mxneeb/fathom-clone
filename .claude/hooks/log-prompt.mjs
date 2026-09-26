@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 // Claude Code UserPromptSubmit hook: appends the raw user prompt to .agent-logs/.
+// Logged fully raw — no redaction (the user's call; see CAPTURE-TEST.md).
 // Deliberately fails open (always exits 0) so a logging problem never blocks the session.
 import { appendFileSync, mkdirSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { redactDeep } from "./redact.mjs";
+import { join } from "node:path";
 import {
   appendLogEntry,
   extractLatestModel,
   getSessionMeta,
+  isUserTypedPrompt,
   recoverTurnText,
 } from "./session-log.mjs";
 
@@ -35,47 +35,56 @@ try {
   }
 
   const sessionId = input.session_id || "unknown-session";
+  const promptId = input.prompt_id ?? null;
+  const typed = await isUserTypedPrompt(input.transcript_path, promptId);
   const entry = {
     timestamp: new Date().toISOString(),
     role: "user",
+    origin: typed ? "human" : "injected",
     session_id: sessionId,
-    prompt_id: input.prompt_id ?? null,
-    // Known field per current Claude Code docs; kept even if undefined so the
-    // shape is consistent, plus the full raw hook payload as a fallback so we
-    // never silently lose the record if the field name is wrong.
-    content: redactDeep(input.user_input ?? input.prompt ?? null),
-    raw: redactDeep(input),
+    prompt_id: promptId,
+    content: input.prompt ?? null,
+    raw: input,
   };
 
   mkdirSync(logsDir, { recursive: true });
-  const logFile = join(logsDir, `session-${sessionId}.jsonl`);
-  appendFileSync(logFile, JSON.stringify(entry) + "\n", "utf8");
+  appendFileSync(join(logsDir, `session-${sessionId}.jsonl`), JSON.stringify(entry) + "\n", "utf8");
 
-  // If the previous prompt never got a RESPONSE, its turn was interrupted
-  // (Stop doesn't fire then) — log whatever it produced before moving on.
-  const pending = getSessionMeta(sessionId)?.pending_prompt_id;
-  if (pending) {
-    const recovered = recoverTurnText(input.transcript_path, pending);
+  const openTurn = getSessionMeta(sessionId)?.pending_prompt_id;
+  if (typed) {
+    // The previous prompt never got a RESPONSE: its turn was interrupted
+    // (Stop doesn't fire then). Log whatever it produced before moving on.
+    if (openTurn) {
+      const recovered = recoverTurnText(input.transcript_path, openTurn);
+      appendLogEntry({
+        sessionId,
+        type: "RESPONSE",
+        text: recovered.text ?? "(no response text was produced before the interruption)",
+        model: recovered.model,
+        status: "interrupted (Stop hook did not fire; text recovered from session transcript)",
+      });
+    }
     appendLogEntry({
       sessionId,
-      type: "RESPONSE",
-      text: redactDeep(recovered.text) ?? "(no response text was produced before the interruption)",
-      model: recovered.model,
-      status: "interrupted (Stop hook did not fire; text recovered from session transcript)",
+      type: "PROMPT",
+      text: entry.content,
+      model: extractLatestModel(input.transcript_path),
+      promptId,
+    });
+  } else if (!openTurn) {
+    // An injected message that starts a turn on its own (agent was idle):
+    // keep it, clearly labelled, so the turn's response has something to
+    // pair with. Mid-turn deliveries don't open a new exchange — they stay
+    // in the JSONL only.
+    appendLogEntry({
+      sessionId,
+      type: "PROMPT",
+      text: entry.content,
+      model: extractLatestModel(input.transcript_path),
+      promptId,
+      status: "system-injected (not typed by the user — e.g. a background task or subagent report)",
     });
   }
-
-  // Also write the prompt+final-response-only markdown log the assignment
-  // spec asks for (per-session file, YAML front-matter, LOG_ENTRY blocks).
-  // Model isn't known yet at prompt time, so fall back to the last model
-  // seen in this session's transcript so far.
-  appendLogEntry({
-    sessionId,
-    type: "PROMPT",
-    text: entry.content,
-    model: extractLatestModel(input.transcript_path),
-    promptId: input.prompt_id ?? null,
-  });
 } catch (err) {
   try {
     mkdirSync(logsDir, { recursive: true });

@@ -43,7 +43,7 @@ try {
         role: "ask_user_question",
         session_id: sessionId,
         prompt_id: input.prompt_id ?? null,
-        raw: redactDeep(input),
+        raw: input,
       }) + "\n",
       "utf8"
     );
@@ -52,7 +52,7 @@ try {
     appendLogEntry({
       sessionId,
       type: "RESPONSE",
-      text: redactDeep([lead, formatQuestions(questions)].filter(Boolean).join("\n\n")),
+      text: [lead, formatQuestions(questions)].filter(Boolean).join("\n\n"),
       model,
       status: "question to the user (AskUserQuestion)",
       keepPending: true,
@@ -61,7 +61,7 @@ try {
       sessionId,
       type: "PROMPT",
       // Fall back to the raw tool_response if its shape isn't the expected one.
-      text: redactDeep(answers ? formatAnswers(answers) : JSON.stringify(input.tool_response ?? null)),
+      text: answers ? formatAnswers(answers) : JSON.stringify(input.tool_response ?? null),
       model,
       status: "answer via AskUserQuestion",
     });

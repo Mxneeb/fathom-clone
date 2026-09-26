@@ -47,17 +47,15 @@ const textOf = (content) =>
     : Array.isArray(content)
       ? content.filter((c) => c.type === "text").map((c) => c.text).join("\n")
       : "";
-// Claude Code wraps pasted blocks in these tags in the transcript; the live
-// hook receives the pasted text without them, so strip them to match.
-const stripPasteTags = (t) => t.replace(/<\/?pasted_content[^>]*>/g, "").trim();
-
 const INTERRUPTED = "interrupted (user stopped the turn; all text produced before it)";
+const INJECTED = "system-injected (not typed by the user — e.g. a background task or subagent report)";
 
 // Walk the transcript as a stream of exchanges. A "segment" is the stretch
 // of assistant output after a prompt (typed, or an AskUserQuestion answer).
 const events = [];
 let seg = null;
 let lastModel = null;
+let lastStopReason = null;
 
 function closeSegment() {
   if (!seg) return;
@@ -80,8 +78,20 @@ for (const e of entries) {
   if (isHumanPrompt(e)) {
     if (until && e.timestamp >= until) break;
     closeSegment();
-    events.push({ type: "PROMPT", time: e.timestamp, text: stripPasteTags(textOf(e.message.content)), model: lastModel });
+    events.push({ type: "PROMPT", time: e.timestamp, text: textOf(e.message.content), model: lastModel });
     seg = { texts: [], interrupted: false, start: e.timestamp };
+    continue;
+  }
+  // Harness-injected messages (background task / subagent reports) are
+  // stored as queued_command attachments. Mid-turn they don't open a new
+  // exchange; one arriving after the turn ended starts a turn of its own.
+  if (e.type === "attachment" && e.attachment?.type === "queued_command") {
+    if (until && e.timestamp >= until) break;
+    if (lastStopReason === "end_turn") {
+      closeSegment();
+      events.push({ type: "PROMPT", time: e.timestamp, text: String(e.attachment.prompt ?? ""), model: lastModel, status: INJECTED });
+      seg = { texts: [], interrupted: false, start: e.timestamp };
+    }
     continue;
   }
   if (!seg) continue;
@@ -105,6 +115,7 @@ for (const e of entries) {
   }
   if (e.type === "assistant" && Array.isArray(e.message?.content)) {
     if (e.message.model) lastModel = e.message.model;
+    lastStopReason = e.message.stop_reason ?? lastStopReason;
     for (const b of e.message.content) {
       if (b.type === "text" && b.text?.trim()) {
         seg.texts.push({ messageId: e.message.id, text: b.text, time: e.timestamp, model: e.message.model });
@@ -149,8 +160,9 @@ Session: \`${shortId}\` | Project: \`${PROJECT}\` | Author: \`${AUTHOR}\`
 > of this same session: \`session-${sessionId}.jsonl\` (from when the hooks were installed) and the
 > other \`*_${sessionId}.md\` file (from when this markdown format was added). Answers given through
 > the agent's multiple-choice questions (AskUserQuestion) appear as PROMPT entries with a \`status:\`
-> line, right after the RESPONSE that asked them. Secrets are masked with the same
-> \`.claude/hooks/redact.mjs\` the live hooks use; nothing else is changed.
+> line, right after the RESPONSE that asked them. Credential-shaped strings are masked with
+> \`.claude/hooks/redact.mjs\` because this history contains an API key that is still live — the live
+> hooks themselves log fully raw. Nothing else is changed.
 
 ---
 `;
