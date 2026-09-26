@@ -1,139 +1,125 @@
-import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { SearchBar } from "@/components/search-bar";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { formatDay, formatDuration, formatTime } from "@/lib/format";
+import { MiniTimeline, SpeakerStack } from "@/components/mini-timeline";
+import { UploadIcon } from "@/components/icons";
 
-function formatDuration(sec: number) {
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
+export const metadata = { title: "Meetings" };
 
-function escapeRegExp(s: string) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function highlightMatch(text: string, query: string) {
-  const parts = text.split(new RegExp(`(${escapeRegExp(query)})`, "gi"));
-  return parts.map((part, i) =>
-    part.toLowerCase() === query.toLowerCase() ? (
-      <mark key={i} className="rounded bg-amber-400/20 text-amber-300">
-        {part}
-      </mark>
-    ) : (
-      <span key={i}>{part}</span>
-    )
-  );
-}
-
-export default async function CallsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ q?: string }>;
-}) {
+export default async function MeetingsPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
-  const { q } = await searchParams;
-  const userId = session.user.id;
 
   const meetings = await prisma.meeting.findMany({
-    where: q
-      ? {
-          ownerId: userId,
-          OR: [
-            { title: { contains: q, mode: "insensitive" } },
-            { transcriptLines: { some: { text: { contains: q, mode: "insensitive" } } } },
-            { transcriptLines: { some: { speakerName: { contains: q, mode: "insensitive" } } } },
-          ],
-        }
-      : { ownerId: userId },
+    where: { ownerId: session.user.id },
     orderBy: { occurredAt: "desc" },
-    include: {
-      participants: true,
-      _count: { select: { highlights: true, actionItems: true } },
-      // Surface the first matching line so a search result can jump
-      // straight to that moment, not just the meeting as a whole.
-      transcriptLines: q
-        ? {
-            where: {
-              OR: [
-                { text: { contains: q, mode: "insensitive" } },
-                { speakerName: { contains: q, mode: "insensitive" } },
-              ],
-            },
-            orderBy: { order: "asc" },
-            take: 1,
-          }
-        : false,
+    select: {
+      id: true,
+      title: true,
+      occurredAt: true,
+      durationSec: true,
+      source: true,
+      transcriptLines: { select: { speakerName: true, startMs: true, endMs: true }, orderBy: { order: "asc" } },
+      actionItems: { select: { done: true } },
+      _count: { select: { highlights: true } },
     },
   });
 
+  const openActions = meetings.reduce((n, m) => n + m.actionItems.filter((a) => !a.done).length, 0);
+  const days = new Map<string, typeof meetings>();
+  for (const m of meetings) {
+    const key = formatDay(m.occurredAt);
+    days.set(key, [...(days.get(key) ?? []), m]);
+  }
+
   return (
-    <div className="mx-auto max-w-4xl px-6 py-8">
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <h1 className="text-lg font-semibold">My Calls</h1>
-        <div className="flex items-center gap-3">
-          <SearchBar defaultValue={q ?? ""} />
-          <Link
-            href="/calls/new"
-            className="rounded bg-sky-600 px-3 py-1.5 text-xs font-medium hover:bg-sky-500"
-          >
-            + Upload a recording
-          </Link>
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="font-serif text-4xl font-semibold tracking-tight text-ink">Meetings</h1>
+          <p className="mt-1.5 text-sm text-ink-2">
+            {meetings.length} {meetings.length === 1 ? "recording" : "recordings"}
+            {openActions > 0 && ` · ${openActions} open action ${openActions === 1 ? "item" : "items"}`}
+          </p>
         </div>
+        <Link
+          href="/calls/new"
+          className="inline-flex items-center gap-2 rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-paper hover:bg-ink-2"
+        >
+          <UploadIcon size={16} />
+          Upload a recording
+        </Link>
       </div>
 
       {meetings.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-neutral-800 py-16 text-center text-neutral-500">
-          {q ? (
-            <>No call recordings match &ldquo;{q}&rdquo;.</>
-          ) : (
-            <>No call recordings.</>
-          )}
+        <div className="mt-10 rounded-2xl border border-dashed border-rule-2 px-6 py-16 text-center">
+          <p className="font-serif text-xl text-ink">No meetings yet</p>
+          <p className="mt-1 text-sm text-ink-2">Upload a recording and Cue will transcribe and map it.</p>
         </div>
       ) : (
-        <ul className="divide-y divide-neutral-800 rounded-lg border border-neutral-800">
-          {meetings.map((m) => {
-            const matchLine = q && m.transcriptLines ? m.transcriptLines[0] : undefined;
-            const href = matchLine
-              ? `/calls/${m.id}?t=${matchLine.startMs}`
-              : `/calls/${m.id}`;
-            return (
-              <li key={m.id}>
-                <Link
-                  href={href}
-                  className="flex items-center justify-between gap-4 px-4 py-4 hover:bg-neutral-900/60"
-                >
-                  <div className="min-w-0">
-                    <div className="truncate font-medium">
-                      {q ? highlightMatch(m.title, q) : m.title}
-                    </div>
-                    <div className="mt-1 text-xs text-neutral-500">
-                      {m.occurredAt.toLocaleDateString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}{" "}
-                      · {formatDuration(m.durationSec)} ·{" "}
-                      {m.participants.map((p) => p.name).join(", ")}
-                    </div>
-                    {matchLine && (
-                      <div className="mt-1.5 truncate text-xs text-neutral-400">
-                        <span className="text-neutral-500">{matchLine.speakerName}:</span>{" "}
-                        {highlightMatch(matchLine.text, q!)}
+        [...days.entries()].map(([day, list]) => (
+          <section key={day} className="mt-9">
+            <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-3">{day}</h2>
+            <ul className="space-y-3">
+              {list.map((m) => {
+                const open = m.actionItems.filter((a) => !a.done).length;
+                const speakerCount = new Set(m.transcriptLines.map((l) => l.speakerName)).size;
+                return (
+                  <li key={m.id}>
+                    <Link
+                      href={`/calls/${m.id}`}
+                      className="group block rounded-2xl border border-rule bg-card p-4 transition hover:border-rule-2 hover:shadow-[0_1px_0_var(--rule),0_8px_24px_-12px_rgba(29,27,22,0.18)] sm:p-5"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <h3 className="truncate font-serif text-xl font-semibold text-ink group-hover:text-accent-ink">
+                            {m.title}
+                          </h3>
+                          <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-ink-2">
+                            <span>{formatTime(m.occurredAt)}</span>
+                            <span className="text-ink-3">·</span>
+                            <span>{formatDuration(m.durationSec)}</span>
+                            <span className="text-ink-3">·</span>
+                            <span>
+                              {speakerCount} {speakerCount === 1 ? "speaker" : "speakers"}
+                            </span>
+                            {m.source === "SEED" && (
+                              <span className="rounded-full border border-rule-2 px-2 py-px text-[11px] font-medium text-ink-3">
+                                Sample
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                        <SpeakerStack lines={m.transcriptLines} />
                       </div>
-                    )}
-                  </div>
-                  <div className="flex shrink-0 items-center gap-3 text-xs text-neutral-500">
-                    {m._count.highlights > 0 && <span>✦ {m._count.highlights}</span>}
-                    {m._count.actionItems > 0 && <span>☑ {m._count.actionItems}</span>}
-                  </div>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+                      <div className="mt-4">
+                        <MiniTimeline lines={m.transcriptLines} totalMs={m.durationSec * 1000} />
+                      </div>
+                      <div className="mt-3 flex items-center gap-4 text-xs text-ink-3">
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="h-2.5 w-2.5 rounded-full border-2 border-ink-3" />
+                          {m.actionItems.length === 0
+                            ? "No action items"
+                            : open === 0
+                              ? `All ${m.actionItems.length} action items done`
+                              : `${open} of ${m.actionItems.length} action items open`}
+                        </span>
+                        {m._count.highlights > 0 && (
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="h-2 w-2 rotate-45 rounded-[1px] bg-accent" />
+                            {m._count.highlights} {m._count.highlights === 1 ? "highlight" : "highlights"}
+                          </span>
+                        )}
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        ))
       )}
     </div>
   );

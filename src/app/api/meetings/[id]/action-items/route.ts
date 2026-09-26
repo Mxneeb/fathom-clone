@@ -40,16 +40,20 @@ export async function POST(
   }
 
   const created = await prisma.$transaction(
-    generated.map((item) =>
-      prisma.actionItem.create({
+    generated.map((item) => {
+      const dueDate = item.dueDate ? new Date(item.dueDate) : undefined;
+      return prisma.actionItem.create({
         data: {
           meetingId: meeting.id,
           text: item.text,
           owner: item.owner,
-          dueDate: item.dueDate ? new Date(item.dueDate) : undefined,
+          // Model output: drop an unparseable date or an out-of-range line.
+          dueDate: dueDate && !Number.isNaN(dueDate.getTime()) ? dueDate : undefined,
+          sourceMs:
+            item.lineIndex != null ? meeting.transcriptLines[item.lineIndex]?.startMs : undefined,
         },
-      })
-    )
+      });
+    })
   );
 
   return NextResponse.json({ actionItems: created });

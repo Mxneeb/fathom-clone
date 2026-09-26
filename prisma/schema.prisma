@@ -26,11 +26,17 @@ model User {
   emailVerified DateTime?
   image         String?
 
+  // A throwaway account created by "Try the demo" (no sign-in). Removed,
+  // with everything it owns, once it's a few days old.
+  isGuest Boolean @default(false)
+
   accounts Account[]
   sessions Session[]
   meetings Meeting[]
 
   createdAt DateTime @default(now())
+
+  @@index([isGuest, createdAt])
 }
 
 model Account {
@@ -158,6 +164,9 @@ model ActionItem {
   text      String    @db.Text
   owner     String?
   dueDate   DateTime?
+  // Where in the recording the commitment was made, so the item can sit on
+  // the meeting timeline and jump playback to that moment.
+  sourceMs  Int?
   done      Boolean   @default(false)
   createdAt DateTime  @default(now())
 

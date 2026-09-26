@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
+import { formatClock, formatShortDate } from "@/lib/format";
+import { Panel, QuietButton, TimeChip } from "@/components/panel";
+import { CheckIcon, SparkIcon } from "@/components/icons";
 
 export type ActionItemData = {
   id: string;
@@ -8,106 +11,137 @@ export type ActionItemData = {
   owner: string | null;
   dueDate: string | null;
   done: boolean;
+  sourceMs: number | null;
 };
 
 export function ActionItemsPanel({
   meetingId,
-  initialItems,
+  items,
+  onItemsChange,
+  onSeek,
+  readOnly = false,
 }: {
   meetingId: string;
-  initialItems: ActionItemData[];
+  items: ActionItemData[];
+  onItemsChange: Dispatch<SetStateAction<ActionItemData[]>>;
+  onSeek: (ms: number) => void;
+  readOnly?: boolean;
 }) {
-  const [items, setItems] = useState(initialItems);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ tone: "info" | "error"; text: string } | null>(null);
+  const doneCount = items.filter((i) => i.done).length;
 
   async function generate() {
     setLoading(true);
-    setError(null);
-    setInfo(null);
+    setMessage(null);
     try {
       const res = await fetch(`/api/meetings/${meetingId}/action-items`, { method: "POST" });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? `Request failed (${res.status})`);
       }
-      const { actionItems } = await res.json();
+      const { actionItems } = (await res.json()) as { actionItems: ActionItemData[] };
       if (actionItems.length === 0) {
-        setInfo("No action items found in this transcript.");
+        setMessage({ tone: "info", text: "No commitments found in this transcript." });
       } else {
-        setItems((prev) => [...prev, ...actionItems]);
+        onItemsChange((prev) => [...prev, ...actionItems]);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
+      setMessage({ tone: "error", text: e instanceof Error ? e.message : "Something went wrong" });
     } finally {
       setLoading(false);
     }
   }
 
-  async function toggleDone(id: string, done: boolean) {
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, done } : i)));
-    await fetch(`/api/meetings/${meetingId}/action-items`, {
+  async function toggle(id: string, done: boolean) {
+    onItemsChange((prev) => prev.map((i) => (i.id === id ? { ...i, done } : i)));
+    const res = await fetch(`/api/meetings/${meetingId}/action-items`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ actionItemId: id, done }),
     });
+    if (!res.ok) onItemsChange((prev) => prev.map((i) => (i.id === id ? { ...i, done: !done } : i)));
   }
 
   return (
-    <div className="rounded-lg border border-neutral-800 p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold">Action Items</h2>
-        <button
-          onClick={generate}
-          disabled={loading}
-          className="text-xs text-neutral-500 underline hover:text-neutral-300 disabled:opacity-50"
-        >
-          {loading ? "Generating…" : "Generate more"}
-        </button>
-      </div>
-
+    <Panel
+      title={
+        <>
+          Action items
+          {items.length > 0 && (
+            <span className="ml-2 font-mono font-normal normal-case tracking-normal">
+              {doneCount}/{items.length} done
+            </span>
+          )}
+        </>
+      }
+      action={
+        !readOnly &&
+        items.length > 0 && (
+          <QuietButton onClick={generate} disabled={loading}>
+            {loading ? "Looking…" : "Find more"}
+          </QuietButton>
+        )
+      }
+    >
       {items.length === 0 ? (
-        <div className="py-6 text-center">
-          <p className="mb-3 text-sm text-neutral-500">No action items yet.</p>
-          <button
-            onClick={generate}
-            disabled={loading}
-            className="rounded border border-neutral-700 px-3 py-1.5 text-xs hover:bg-neutral-900 disabled:opacity-50"
-          >
-            {loading ? "Generating…" : "Generate action items"}
-          </button>
-        </div>
+        readOnly ? (
+          <p className="text-sm text-ink-3">No action items.</p>
+        ) : (
+          <div className="py-3 text-center">
+            <p className="mx-auto mb-4 max-w-xs font-serif text-[15px] text-ink-2">
+              Commitments made in the meeting, with who owns them and where they were said.
+            </p>
+            <button
+              type="button"
+              onClick={generate}
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-lg bg-ink px-3.5 py-2 text-sm font-medium text-paper hover:bg-ink-2 disabled:opacity-60"
+            >
+              <SparkIcon size={15} />
+              {loading ? "Reading the transcript…" : "Find action items"}
+            </button>
+          </div>
+        )
       ) : (
-        <ul className="space-y-2">
+        <ul className="-my-1 divide-y divide-rule/60">
           {items.map((item) => (
-            <li key={item.id} className="flex items-start gap-2">
-              <input
-                type="checkbox"
-                checked={item.done}
-                onChange={(e) => toggleDone(item.id, e.target.checked)}
-                className="mt-1 h-3.5 w-3.5 shrink-0 accent-sky-500"
-              />
-              <div className={item.done ? "text-neutral-600 line-through" : "text-neutral-200"}>
-                <span className="text-sm">{item.text}</span>
+            <li key={item.id} className="flex items-start gap-3 py-2.5">
+              <button
+                type="button"
+                role="checkbox"
+                aria-checked={item.done}
+                aria-label={item.text}
+                disabled={readOnly}
+                onClick={() => toggle(item.id, !item.done)}
+                className={`mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] border-[1.5px] transition-colors ${
+                  item.done ? "border-good bg-good text-card" : "border-rule-2 bg-card hover:border-ink-3"
+                } disabled:cursor-default`}
+              >
+                {item.done && <CheckIcon size={12} strokeWidth={3} />}
+              </button>
+              <div className="min-w-0 flex-1">
+                <p className={`text-[14.5px] leading-snug ${item.done ? "text-ink-3 line-through" : "text-ink"}`}>
+                  {item.text}
+                </p>
                 {(item.owner || item.dueDate) && (
-                  <div className="mt-0.5 text-xs text-neutral-500">
+                  <p className="mt-0.5 text-xs text-ink-3">
                     {item.owner}
                     {item.owner && item.dueDate && " · "}
-                    {item.dueDate &&
-                      new Date(item.dueDate).toLocaleDateString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                  </div>
+                    {item.dueDate && `due ${formatShortDate(new Date(item.dueDate))}`}
+                  </p>
                 )}
               </div>
+              {item.sourceMs != null && (
+                <TimeChip label={formatClock(item.sourceMs)} onClick={() => onSeek(item.sourceMs!)} />
+              )}
             </li>
           ))}
         </ul>
       )}
-      {info && <p className="mt-2 text-xs text-neutral-500">{info}</p>}
-      {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
-    </div>
+      {message && (
+        <p className={`mt-3 text-xs ${message.tone === "error" ? "text-bad" : "text-ink-3"}`}>{message.text}</p>
+      )}
+    </Panel>
   );
 }

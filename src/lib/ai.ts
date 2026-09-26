@@ -104,7 +104,7 @@ export async function generateSummary(
   return text.trim();
 }
 
-export type GeneratedActionItem = { text: string; owner?: string; dueDate?: string };
+export type GeneratedActionItem = { text: string; owner?: string; dueDate?: string; lineIndex?: number };
 
 const ACTION_ITEMS_TOOL = {
   type: "function" as const,
@@ -128,8 +128,13 @@ const ACTION_ITEMS_TOOL = {
                 type: "string",
                 description: "ISO 8601 date if a due date/deadline was mentioned, else omit.",
               },
+              lineIndex: {
+                type: "integer",
+                description:
+                  "The [number] of the transcript line where this commitment was made.",
+              },
             },
-            required: ["text"],
+            required: ["text", "lineIndex"],
           },
         },
       },
@@ -142,7 +147,9 @@ export async function generateActionItems(
   lines: TranscriptLineInput[]
 ): Promise<GeneratedActionItem[]> {
   const groq = client();
-  const transcript = transcriptToPlainText(lines);
+  // Numbered so the model can say which line each commitment came from; the
+  // route turns that into a timestamp for the meeting timeline.
+  const transcript = lines.map((l, i) => `[${i}] ${l.speakerName}: ${l.text}`).join("\n");
 
   const completion = await groq.chat.completions.create({
     model: MODEL,
@@ -153,9 +160,10 @@ export async function generateActionItems(
         content:
           "You extract concrete action items (commitments, follow-ups, tasks) from meeting " +
           "transcripts. Only include real commitments actually made in the transcript — do " +
-          "not invent tasks. Call the record_action_items tool with your findings — if the " +
-          "transcript genuinely contains no action items, call it with an empty actionItems " +
-          "array rather than not calling it at all.",
+          "not invent tasks. Each transcript line starts with its [number]; give the number " +
+          "of the line where each commitment was made. Call the record_action_items tool " +
+          "with your findings — if the transcript genuinely contains no action items, call " +
+          "it with an empty actionItems array rather than not calling it at all.",
       },
       { role: "user", content: `Meeting transcript:\n\n${transcript}` },
     ],

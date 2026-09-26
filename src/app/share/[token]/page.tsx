@@ -1,16 +1,23 @@
-import { prisma } from "@/lib/prisma";
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { MeetingPlayer } from "@/components/meeting-player";
-import { renderMarkdown } from "@/lib/render-markdown";
+import { prisma } from "@/lib/prisma";
+import { formatDay, formatDuration, formatTime } from "@/lib/format";
+import { Wordmark } from "@/components/brand";
+import { MeetingView } from "@/components/meeting-view";
 
-// Public, unauthenticated share view — "anyone with the link can view," per
-// the build plan's single access tier. No account needed to open this page.
+export const metadata = { title: "Shared meeting", robots: { index: false } };
+
+// Public and unauthenticated: one access tier, "anyone with the link can
+// view". Nothing on this page can change the meeting.
 export default async function SharePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ token: string }>;
+  searchParams: Promise<{ t?: string }>;
 }) {
   const { token } = await params;
+  const { t } = await searchParams;
 
   const shareLink = await prisma.shareLink.findUnique({
     where: { token },
@@ -18,40 +25,59 @@ export default async function SharePage({
       meeting: {
         include: {
           transcriptLines: { orderBy: { order: "asc" } },
-          participants: true,
           summaries: { orderBy: { generatedAt: "asc" } },
+          actionItems: { orderBy: { createdAt: "asc" } },
           highlights: { orderBy: { timestampMs: "asc" } },
         },
       },
     },
   });
-
   if (!shareLink) notFound();
   const { meeting } = shareLink;
+  const speakerCount = new Set(meeting.transcriptLines.map((l) => l.speakerName)).size;
+  const seekMs = t && Number.isFinite(Number(t)) ? Math.max(0, Number(t)) : undefined;
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100">
-      <header className="border-b border-neutral-800 px-6 py-3">
-        <span className="text-sm font-semibold tracking-tight">FATHOM CLONE</span>
-        <span className="ml-2 text-xs text-neutral-500">Shared recording</span>
+    <div className="flex min-h-screen flex-col">
+      <header className="border-b border-rule">
+        <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-3 px-4 sm:px-6">
+          <Link href="/login" aria-label="Cue">
+            <Wordmark />
+          </Link>
+          <span className="rounded-full bg-paper-2 px-2.5 py-0.5 text-xs font-medium text-ink-2">
+            Shared meeting · view only
+          </span>
+          <Link
+            href="/login"
+            className="ml-auto rounded-lg border border-rule bg-card px-3 py-1.5 text-sm font-medium text-ink hover:border-ink-3"
+          >
+            Try Cue
+          </Link>
+        </div>
       </header>
 
-      <div className="mx-auto max-w-6xl px-6 py-8">
-        <div className="mb-6">
-          <h1 className="text-lg font-semibold">{meeting.title}</h1>
-          <div className="mt-1 text-sm text-neutral-500">
-            {meeting.occurredAt.toLocaleString(undefined, {
-              dateStyle: "medium",
-              timeStyle: "short",
-            })}{" "}
-            · {meeting.participants.map((p) => p.name).join(", ")}
-          </div>
-        </div>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 sm:px-6">
+        <h1 className="font-serif text-3xl font-semibold leading-tight tracking-tight text-ink sm:text-[2.5rem]">
+          {meeting.title}
+        </h1>
+        <p className="mb-6 mt-2 flex flex-wrap items-center gap-x-2 text-sm text-ink-2">
+          <span>
+            {formatDay(meeting.occurredAt)}, {formatTime(meeting.occurredAt)}
+          </span>
+          <span className="text-ink-3">·</span>
+          <span>{formatDuration(meeting.durationSec)}</span>
+          <span className="text-ink-3">·</span>
+          <span>
+            {speakerCount} {speakerCount === 1 ? "speaker" : "speakers"}
+          </span>
+        </p>
 
-        <MeetingPlayer
+        <MeetingView
+          readOnly
           meetingId={meeting.id}
           mediaUrl={meeting.mediaUrl}
           mediaType={meeting.mediaType}
+          durationMs={meeting.durationSec * 1000}
           lines={meeting.transcriptLines.map((l) => ({
             id: l.id,
             speakerName: l.speakerName,
@@ -65,18 +91,18 @@ export default async function SharePage({
             label: h.label,
             note: h.note,
           }))}
-          readOnly
+          initialActionItems={meeting.actionItems.map((a) => ({
+            id: a.id,
+            text: a.text,
+            owner: a.owner,
+            dueDate: a.dueDate ? a.dueDate.toISOString() : null,
+            done: a.done,
+            sourceMs: a.sourceMs,
+          }))}
+          initialSummaries={meeting.summaries.map((s) => ({ id: s.id, template: s.template, content: s.content }))}
+          initialSeekMs={seekMs}
         />
-
-        {meeting.summaries.length > 0 && (
-          <div className="mt-8 max-w-2xl rounded-lg border border-neutral-800 p-4">
-            <h2 className="mb-3 text-sm font-semibold">Summary</h2>
-            <div className="space-y-1">
-              {renderMarkdown(meeting.summaries[meeting.summaries.length - 1].content)}
-            </div>
-          </div>
-        )}
-      </div>
+      </main>
     </div>
   );
 }

@@ -7,16 +7,9 @@ import { upload } from "@vercel/blob/client";
 const BASE = process.argv[2] || "http://localhost:3000";
 const filePath = process.argv[3] || "scripts/test-small.wav";
 
-// --- get a session cookie via the dev-login route ---
-const csrfRes = await fetch(`${BASE}/api/auth/csrf`);
-const csrfCookies = csrfRes.headers.getSetCookie?.() ?? [];
-
-const loginRes = await fetch(`${BASE}/api/dev-login`, {
-  redirect: "manual",
-  headers: { Cookie: csrfCookies.map((c) => c.split(";")[0]).join("; ") },
-});
-const loginCookies = loginRes.headers.getSetCookie?.() ?? [];
-const allCookies = [...csrfCookies, ...loginCookies].map((c) => c.split(";")[0]).join("; ");
+// --- get a session cookie as a fresh demo guest ---
+const loginRes = await fetch(`${BASE}/api/demo`, { method: "POST", redirect: "manual" });
+const allCookies = (loginRes.headers.getSetCookie?.() ?? []).map((c) => c.split(";")[0]).join("; ");
 console.log("cookies obtained:", allCookies.length > 0);
 
 // --- build the file exactly like the browser would from <input type=file> ---

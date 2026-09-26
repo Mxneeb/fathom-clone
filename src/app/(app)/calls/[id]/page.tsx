@@ -1,12 +1,24 @@
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { notFound, redirect } from "next/navigation";
-import { MeetingPlayer } from "@/components/meeting-player";
-import { SummaryPanel } from "@/components/summary-panel";
-import { ActionItemsPanel } from "@/components/action-items-panel";
+import { formatDay, formatDuration, formatTime } from "@/lib/format";
+import { MeetingView } from "@/components/meeting-view";
 import { ShareButton } from "@/components/share-button";
+import { ArrowLeftIcon } from "@/components/icons";
 
-export default async function MeetingDetailPage({
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const session = await auth();
+  const meeting = session?.user?.id
+    ? await prisma.meeting.findFirst({
+        where: { id: (await params).id, ownerId: session.user.id },
+        select: { title: true },
+      })
+    : null;
+  return { title: meeting?.title ?? "Meeting" };
+}
+
+export default async function MeetingPage({
   params,
   searchParams,
 }: {
@@ -15,13 +27,11 @@ export default async function MeetingDetailPage({
 }) {
   const { id } = await params;
   const { t } = await searchParams;
-  const initialSeekMs = t ? Number(t) : undefined;
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
-  const userId = session.user.id;
 
   const meeting = await prisma.meeting.findFirst({
-    where: { id, ownerId: userId },
+    where: { id, ownerId: session.user.id },
     include: {
       transcriptLines: { orderBy: { order: "asc" } },
       participants: true,
@@ -30,34 +40,50 @@ export default async function MeetingDetailPage({
       highlights: { orderBy: { timestampMs: "asc" } },
     },
   });
-
   if (!meeting) notFound();
 
+  const seekMs = t && Number.isFinite(Number(t)) ? Math.max(0, Number(t)) : undefined;
+  const speakerCount = new Set(meeting.transcriptLines.map((l) => l.speakerName)).size;
+
   return (
-    <div className="mx-auto max-w-6xl px-6 py-8">
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-lg font-semibold">{meeting.title}</h1>
-          <div className="mt-1 text-sm text-neutral-500">
-            {meeting.occurredAt.toLocaleString(undefined, {
-              dateStyle: "medium",
-              timeStyle: "short",
-            })}{" "}
-            · {meeting.participants.map((p) => p.name).join(", ")}
+    <div className="mx-auto w-full max-w-6xl px-4 pt-6 sm:px-6">
+      <Link href="/calls" className="inline-flex items-center gap-1.5 text-sm text-ink-3 hover:text-ink">
+        <ArrowLeftIcon size={15} />
+        Meetings
+      </Link>
+
+      <div className="mb-6 mt-3 flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="font-serif text-3xl font-semibold leading-tight tracking-tight text-ink sm:text-[2.5rem]">
+            {meeting.title}
+          </h1>
+          <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-2">
+            <span>
+              {formatDay(meeting.occurredAt)}, {formatTime(meeting.occurredAt)}
+            </span>
+            <span className="text-ink-3">·</span>
+            <span>{formatDuration(meeting.durationSec)}</span>
+            <span className="text-ink-3">·</span>
+            <span>
+              {meeting.source === "UPLOAD" && speakerCount === 1
+                ? "Uploaded recording, speakers not separated"
+                : `${speakerCount} speakers`}
+            </span>
             {meeting.source === "SEED" && (
-              <span className="ml-2 rounded border border-amber-700/50 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-400">
+              <span className="rounded-full border border-rule-2 px-2 py-0.5 text-[11px] font-medium text-ink-3">
                 Sample meeting
               </span>
             )}
-          </div>
+          </p>
         </div>
         <ShareButton meetingId={meeting.id} />
       </div>
 
-      <MeetingPlayer
+      <MeetingView
         meetingId={meeting.id}
         mediaUrl={meeting.mediaUrl}
         mediaType={meeting.mediaType}
+        durationMs={meeting.durationSec * 1000}
         lines={meeting.transcriptLines.map((l) => ({
           id: l.id,
           speakerName: l.speakerName,
@@ -71,22 +97,17 @@ export default async function MeetingDetailPage({
           label: h.label,
           note: h.note,
         }))}
-        initialSeekMs={initialSeekMs}
+        initialActionItems={meeting.actionItems.map((a) => ({
+          id: a.id,
+          text: a.text,
+          owner: a.owner,
+          dueDate: a.dueDate ? a.dueDate.toISOString() : null,
+          done: a.done,
+          sourceMs: a.sourceMs,
+        }))}
+        initialSummaries={meeting.summaries.map((s) => ({ id: s.id, template: s.template, content: s.content }))}
+        initialSeekMs={seekMs}
       />
-
-      <div className="mt-8 grid gap-6 md:grid-cols-2">
-        <SummaryPanel meetingId={meeting.id} initialSummaries={meeting.summaries} />
-        <ActionItemsPanel
-          meetingId={meeting.id}
-          initialItems={meeting.actionItems.map((a) => ({
-            id: a.id,
-            text: a.text,
-            owner: a.owner,
-            dueDate: a.dueDate ? a.dueDate.toISOString() : null,
-            done: a.done,
-          }))}
-        />
-      </div>
     </div>
   );
 }
