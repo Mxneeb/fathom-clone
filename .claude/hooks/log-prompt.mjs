@@ -36,7 +36,7 @@ try {
 
   const sessionId = input.session_id || "unknown-session";
   const promptId = input.prompt_id ?? null;
-  const typed = isUserTypedPrompt(input.prompt);
+  const typed = isUserTypedPrompt(input.prompt, input.transcript_path, promptId);
   const entry = {
     timestamp: new Date().toISOString(),
     role: "user",
@@ -82,7 +82,7 @@ try {
       text: entry.content,
       model: extractLatestModel(input.transcript_path),
       promptId,
-      status: "system-injected (not typed by the user — e.g. a background task or subagent report)",
+      status: "system-injected (not typed by the user — a background task, subagent report or auto-continuation)",
     });
   }
 } catch (err) {

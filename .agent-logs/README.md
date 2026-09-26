@@ -30,10 +30,10 @@ Anything that isn't a plain typed prompt or end-of-turn response is labelled:
   recovers everything that turn had said from the session transcript.
 - `question to the user` / `answer via AskUserQuestion` — a multiple-choice question and its
   answer. These arrive as tool results, which neither `UserPromptSubmit` nor `Stop` sees.
-- `system-injected` — a message the harness itself sent (background-task notification, subagent
-  report) that started a turn on its own. The same messages arriving mid-turn aren't exchanges and
-  go to the JSONL only. They're recognised by the `<task-notification>` / `<agent-message>`
-  wrapper the harness puts around them.
+- `system-injected` — a message Claude Code itself sent (background-task notification, subagent
+  report, the auto-continuation after a usage limit resets) that started a turn on its own. Mid-turn
+  ones aren't exchanges and go to the JSONL only. Recognised by the `<task-notification>` /
+  `<agent-message>` wrapper, or by a non-human `origin` on the prompt's transcript entry.
 
 ## Raw, not redacted
 
@@ -53,8 +53,12 @@ history contains an API key that is still live.
 
 The log isn't edited after the fact, so earlier capture bugs are still visible:
 
-- `2026-09-14_11-44-20_c06162be-….md`, prompts 6–8: subagent reports and task notifications logged
+- `2026-09-14_11-44-20_c06162be-….md`, prompts 6–9: subagent reports and task notifications logged
   as user prompts, with the gaps between them mislabelled as interrupted turns (fixed in `6f00947`).
+- Same file, response 10: that turn was cut off by the usage limit, but its open-turn pointer still
+  aimed at an injected message from the buggy period above, so none of its text was recovered.
+  Prompt 11, Claude Code's own "usage limit has reset" auto-continuation, is logged as typed (fixed
+  in the commit after `83f3b45`).
 - `…_c85fa07a-….md` and `…_ae593d63-….md`: headless canary prompts mislabelled `system-injected`
   (fixed in `990b9b4` and `c383f49`).
 - `…_1c266c56-….md`: model logged as `unknown` (fixed in `6402c00`).

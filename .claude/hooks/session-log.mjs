@@ -203,17 +203,28 @@ function readTranscriptTail(transcriptPath, bytes = 4 * 1024 * 1024) {
   }
 }
 
-// UserPromptSubmit also fires for messages the harness injects (subagent
-// reports, background-task notifications) with a payload identical to a
-// typed prompt. The transcript can't tell them apart reliably: interactive
-// sessions write the typed prompt before the hook runs, headless ones only
-// after it. What is consistent is the wrapper the harness puts around its
-// own messages. An unknown future wrapper fails safe — logged as typed.
+// UserPromptSubmit also fires for messages the harness sends itself, with a
+// payload identical to a typed prompt. Two signals, either one is enough:
+// - the wrapper around subagent reports and background-task notifications;
+// - the prompt's transcript entry, when it's already on disk (interactive
+//   sessions write it just before this hook; headless ones only after). An
+//   explicit non-human origin — e.g. the "auto-continuation" Claude Code
+//   sends when a usage limit resets — marks it as not typed. Origin-less
+//   entries sharing the prompt's id (image attachments, interrupt markers)
+//   are not evidence either way.
+// No evidence means typed: an unrecognised injection is over-logged, never
+// a real prompt dropped.
 const INJECTED_WRAPPERS = ["<task-notification>", "<agent-message "];
 
-export function isUserTypedPrompt(prompt) {
+export function isUserTypedPrompt(prompt, transcriptPath, promptId) {
   const head = String(prompt ?? "").trimStart();
-  return !INJECTED_WRAPPERS.some((w) => head.startsWith(w));
+  if (INJECTED_WRAPPERS.some((w) => head.startsWith(w))) return false;
+  if (!promptId) return true;
+  const entries = readTranscriptTail(transcriptPath).filter(
+    (e) => e.type === "user" && e.promptId === promptId && !isToolResult(e)
+  );
+  if (entries.some(isHumanPrompt)) return true;
+  return !entries.some((e) => e.origin && e.origin.kind !== "human");
 }
 
 function isToolResult(entry) {
