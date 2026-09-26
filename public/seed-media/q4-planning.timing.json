@@ -1,0 +1,579 @@
+{
+  "slug": "q4-planning",
+  "title": "Q4 Planning — Search & Mobile",
+  "occurredAt": "2026-09-14T15:00:00Z",
+  "participants": [
+    {
+      "name": "Lena Fischer",
+      "email": "lena@ourcompany.com",
+      "voice": "Zira",
+      "rate": 0,
+      "pitch": 1,
+      "isHost": true
+    },
+    {
+      "name": "Alex Rivera",
+      "email": "alex@ourcompany.com",
+      "voice": "David",
+      "rate": 0,
+      "pitch": 1,
+      "isHost": false
+    },
+    {
+      "name": "Priya Nair",
+      "email": "priya@ourcompany.com",
+      "voice": "Zira",
+      "rate": 1,
+      "pitch": 1.12,
+      "isHost": false
+    },
+    {
+      "name": "Sam Okafor",
+      "email": "sam@ourcompany.com",
+      "voice": "Mark",
+      "rate": 0,
+      "pitch": 1,
+      "isHost": false
+    },
+    {
+      "name": "Maria Lopez",
+      "email": "maria@ourcompany.com",
+      "voice": "Zira",
+      "rate": -1,
+      "pitch": 0.9,
+      "isHost": false
+    },
+    {
+      "name": "Omar Haddad",
+      "email": "omar@ourcompany.com",
+      "voice": "Mark",
+      "rate": 1,
+      "pitch": 1.1,
+      "isHost": false
+    },
+    {
+      "name": "Jordan Blake",
+      "email": "jordan@ourcompany.com",
+      "voice": "David",
+      "rate": 1,
+      "pitch": 1.1,
+      "isHost": false
+    },
+    {
+      "name": "Chris Doyle",
+      "email": "chris@ourcompany.com",
+      "voice": "David",
+      "rate": -1,
+      "pitch": 0.88,
+      "isHost": false
+    }
+  ],
+  "totalMs": 513784,
+  "mediaFile": "q4-planning.mp3",
+  "lines": [
+    {
+      "index": 0,
+      "speaker": "Lena Fischer",
+      "text": "Okay, I think everyone's here. Thanks for making time. This is Q4 planning, and the goal today is simple: leave with three priorities we actually believe we can ship, not seven we hope to.",
+      "startMs": 0,
+      "endMs": 14262
+    },
+    {
+      "index": 1,
+      "speaker": "Alex Rivera",
+      "text": "And an owner for each one. Last quarter we left planning with a wish list and no owners, and it showed.",
+      "startMs": 14612,
+      "endMs": 21931
+    },
+    {
+      "index": 2,
+      "speaker": "Lena Fischer",
+      "text": "Right. So, the agenda. Priya gives us a quick read on search, Maria has news on notifications, Omar has a support issue, and Jordan and Chris walk us through what the Acme deal needs from us. Then we decide.",
+      "startMs": 22281,
+      "endMs": 38327
+    },
+    {
+      "index": 3,
+      "speaker": "Priya Nair",
+      "text": "Sounds good.",
+      "startMs": 38677,
+      "endMs": 40109
+    },
+    {
+      "index": 4,
+      "speaker": "Lena Fischer",
+      "text": "Priya, do you want to start?",
+      "startMs": 40459,
+      "endMs": 43318
+    },
+    {
+      "index": 5,
+      "speaker": "Priya Nair",
+      "text": "Sure. Ranking shipped on the fifteenth, on time, thanks mostly to Sam jumping in. Early numbers look good. Click through on the first result is up about eleven percent week over week.",
+      "startMs": 43668,
+      "endMs": 55737
+    },
+    {
+      "index": 6,
+      "speaker": "Omar Haddad",
+      "text": "Nice.",
+      "startMs": 56087,
+      "endMs": 57243
+    },
+    {
+      "index": 7,
+      "speaker": "Priya Nair",
+      "text": "The obvious next step is personalization, ranking results differently for each team and customer. But I want to be honest, that's a big project. Realistically it's most of a quarter for two engineers.",
+      "startMs": 57593,
+      "endMs": 69743
+    },
+    {
+      "index": 8,
+      "speaker": "Alex Rivera",
+      "text": "Is there a smaller version that gets us most of the value?",
+      "startMs": 70093,
+      "endMs": 73967
+    },
+    {
+      "index": 9,
+      "speaker": "Priya Nair",
+      "text": "There is. We could start by boosting recently viewed documents. That's maybe three weeks for one person, and it covers the most common complaint we hear.",
+      "startMs": 74317,
+      "endMs": 83682
+    },
+    {
+      "index": 10,
+      "speaker": "Lena Fischer",
+      "text": "I like that. Let's keep it in mind. Maria, notifications. This has been blocked for a while.",
+      "startMs": 84032,
+      "endMs": 92855
+    },
+    {
+      "index": 11,
+      "speaker": "Maria Lopez",
+      "text": "It has, and that's on us. The good news is the preferences screen is finished. We tested it with six customers last week, and honestly, it went better than I expected.",
+      "startMs": 93205,
+      "endMs": 106579
+    },
+    {
+      "index": 12,
+      "speaker": "Omar Haddad",
+      "text": "Wait, so the designs are final? Like, final final?",
+      "startMs": 106929,
+      "endMs": 111140
+    },
+    {
+      "index": 13,
+      "speaker": "Maria Lopez",
+      "text": "Final final. I'll send the files over by Friday, with the empty states and the error cases, so you're not guessing.",
+      "startMs": 111490,
+      "endMs": 120923
+    },
+    {
+      "index": 14,
+      "speaker": "Omar Haddad",
+      "text": "That's great. If I get them Friday, I can start on the mobile screen Monday.",
+      "startMs": 121273,
+      "endMs": 125901
+    },
+    {
+      "index": 15,
+      "speaker": "Sam Okafor",
+      "text": "And the backend is mostly the preferences API and the delivery rules. I'd want to see the designs before I commit to a number, but my guess is two weeks.",
+      "startMs": 126251,
+      "endMs": 135364
+    },
+    {
+      "index": 16,
+      "speaker": "Alex Rivera",
+      "text": "Can you give us a real estimate by Wednesday, once you've seen them?",
+      "startMs": 135714,
+      "endMs": 140268
+    },
+    {
+      "index": 17,
+      "speaker": "Sam Okafor",
+      "text": "Yes, Wednesday works.",
+      "startMs": 140618,
+      "endMs": 143087
+    },
+    {
+      "index": 18,
+      "speaker": "Lena Fischer",
+      "text": "Before we get to Acme. Omar, you flagged support load in the planning doc.",
+      "startMs": 143437,
+      "endMs": 149446
+    },
+    {
+      "index": 19,
+      "speaker": "Omar Haddad",
+      "text": "Yeah, quickly. Mobile crash reports doubled after the last release. Most of it is one bug on older Android phones. I have a fix, but it's eaten about a week of my time.",
+      "startMs": 149796,
+      "endMs": 160228
+    },
+    {
+      "index": 20,
+      "speaker": "Alex Rivera",
+      "text": "Is the fix out yet?",
+      "startMs": 160578,
+      "endMs": 162532
+    },
+    {
+      "index": 21,
+      "speaker": "Omar Haddad",
+      "text": "It goes out Thursday. After that I should be back to normal.",
+      "startMs": 162882,
+      "endMs": 166512
+    },
+    {
+      "index": 22,
+      "speaker": "Sam Okafor",
+      "text": "Do we know why it slipped through?",
+      "startMs": 166862,
+      "endMs": 169216
+    },
+    {
+      "index": 23,
+      "speaker": "Omar Haddad",
+      "text": "We don't test on anything older than two years. I'd like to add a couple of older devices to the test lab.",
+      "startMs": 169566,
+      "endMs": 175357
+    },
+    {
+      "index": 24,
+      "speaker": "Alex Rivera",
+      "text": "Put the cost in the doc and I'll approve it. That's cheap compared to losing another week.",
+      "startMs": 175707,
+      "endMs": 181701
+    },
+    {
+      "index": 25,
+      "speaker": "Omar Haddad",
+      "text": "Will do.",
+      "startMs": 182051,
+      "endMs": 183168
+    },
+    {
+      "index": 26,
+      "speaker": "Lena Fischer",
+      "text": "Okay. Jordan, Chris, the Acme deal.",
+      "startMs": 183518,
+      "endMs": 188257
+    },
+    {
+      "index": 27,
+      "speaker": "Jordan Blake",
+      "text": "Quick context for anyone who wasn't on the discovery call. Acme Logistics tracks around four hundred shipments a week, growing about fifteen percent a quarter, and they do it all in spreadsheets. They want to be live before their peak season in November.",
+      "startMs": 188607,
+      "endMs": 203076
+    },
+    {
+      "index": 28,
+      "speaker": "Jordan Blake",
+      "text": "And for what it's worth, their ops director said ours was the first demo that didn't make her feel like she needed a training course. That came up twice.",
+      "startMs": 203426,
+      "endMs": 211916
+    },
+    {
+      "index": 29,
+      "speaker": "Maria Lopez",
+      "text": "Oh, that's really nice to hear.",
+      "startMs": 212266,
+      "endMs": 215276
+    },
+    {
+      "index": 30,
+      "speaker": "Jordan Blake",
+      "text": "They've basically told us it's ours to lose. The one thing that could sink it is the NetSuite integration.",
+      "startMs": 215626,
+      "endMs": 221677
+    },
+    {
+      "index": 31,
+      "speaker": "Chris Doyle",
+      "text": "And to be clear, the connector works. The question is whether it holds up at their volume. Our biggest NetSuite customer today is maybe a quarter of their size.",
+      "startMs": 222027,
+      "endMs": 234276
+    },
+    {
+      "index": 32,
+      "speaker": "Alex Rivera",
+      "text": "So what do you actually need?",
+      "startMs": 234626,
+      "endMs": 237120
+    },
+    {
+      "index": 33,
+      "speaker": "Chris Doyle",
+      "text": "A proper load test with Acme sized data, and probably some work on retries for when NetSuite rate limits us. Call it two weeks of backend time, and I want it done before the middle of October, so there's room to fix whatever we find.",
+      "startMs": 237470,
+      "endMs": 254348
+    },
+    {
+      "index": 34,
+      "speaker": "Sam Okafor",
+      "text": "That's the same backend time as notifications.",
+      "startMs": 254698,
+      "endMs": 257952
+    },
+    {
+      "index": 35,
+      "speaker": "Chris Doyle",
+      "text": "I know. That's the problem.",
+      "startMs": 258302,
+      "endMs": 261620
+    },
+    {
+      "index": 36,
+      "speaker": "Lena Fischer",
+      "text": "Okay, so this is the real conversation. We have three good things, and we don't have the people to do all three properly.",
+      "startMs": 261970,
+      "endMs": 270633
+    },
+    {
+      "index": 37,
+      "speaker": "Jordan Blake",
+      "text": "Can I make the case for Acme first? It's the largest deal in the pipeline this quarter, and they gave us a hard deadline. If we slip, we don't get a second chance before next year.",
+      "startMs": 270983,
+      "endMs": 282210
+    },
+    {
+      "index": 38,
+      "speaker": "Priya Nair",
+      "text": "I get that. But personalization is what every customer asks about, not just one.",
+      "startMs": 282560,
+      "endMs": 288245
+    },
+    {
+      "index": 39,
+      "speaker": "Jordan Blake",
+      "text": "Sure, but the small version isn't going anywhere. Acme is.",
+      "startMs": 288595,
+      "endMs": 293442
+    },
+    {
+      "index": 40,
+      "speaker": "Omar Haddad",
+      "text": "For what it's worth, notifications is the most requested mobile feature by a mile. We've been saying next month since the spring.",
+      "startMs": 293792,
+      "endMs": 300962
+    },
+    {
+      "index": 41,
+      "speaker": "Maria Lopez",
+      "text": "And now the design isn't the excuse anymore.",
+      "startMs": 301312,
+      "endMs": 304862
+    },
+    {
+      "index": 42,
+      "speaker": "Alex Rivera",
+      "text": "Let me put numbers on it. Notifications is about two weeks of Sam and three weeks of Omar. The NetSuite hardening is two weeks of Sam, plus Chris. Recently viewed boosting is three weeks of Priya.",
+      "startMs": 305212,
+      "endMs": 319579
+    },
+    {
+      "index": 43,
+      "speaker": "Lena Fischer",
+      "text": "So Sam is the bottleneck.",
+      "startMs": 319929,
+      "endMs": 322328
+    },
+    {
+      "index": 44,
+      "speaker": "Alex Rivera",
+      "text": "Sam is the bottleneck. Sorry, Sam.",
+      "startMs": 322678,
+      "endMs": 326997
+    },
+    {
+      "index": 45,
+      "speaker": "Sam Okafor",
+      "text": "I'm used to it.",
+      "startMs": 327347,
+      "endMs": 328882
+    },
+    {
+      "index": 46,
+      "speaker": "Lena Fischer",
+      "text": "What if we sequence Sam? NetSuite first, because it has the hard date, then notifications.",
+      "startMs": 329232,
+      "endMs": 336815
+    },
+    {
+      "index": 47,
+      "speaker": "Omar Haddad",
+      "text": "Then I'd be building the mobile screen against an API that doesn't exist yet.",
+      "startMs": 337165,
+      "endMs": 341193
+    },
+    {
+      "index": 48,
+      "speaker": "Sam Okafor",
+      "text": "Not necessarily. If Maria's designs land Friday, I can write the API contract in the first two days, before I switch to NetSuite. Omar builds against a mock, and I fill in the real thing after.",
+      "startMs": 341543,
+      "endMs": 354130
+    },
+    {
+      "index": 49,
+      "speaker": "Omar Haddad",
+      "text": "I can work with that, as long as the contract doesn't change halfway through.",
+      "startMs": 354480,
+      "endMs": 358617
+    },
+    {
+      "index": 50,
+      "speaker": "Sam Okafor",
+      "text": "It won't. And if it does, you'll hear it from me first.",
+      "startMs": 358967,
+      "endMs": 363275
+    },
+    {
+      "index": 51,
+      "speaker": "Chris Doyle",
+      "text": "That works for me too. Starting NetSuite next week still gets us done well before mid October.",
+      "startMs": 363625,
+      "endMs": 370980
+    },
+    {
+      "index": 52,
+      "speaker": "Priya Nair",
+      "text": "And recently viewed boosting doesn't touch any of that, so I can run it in parallel.",
+      "startMs": 371330,
+      "endMs": 376160
+    },
+    {
+      "index": 53,
+      "speaker": "Lena Fischer",
+      "text": "Okay. Let me say it back, and tell me if I've got it wrong.",
+      "startMs": 376510,
+      "endMs": 381728
+    },
+    {
+      "index": 54,
+      "speaker": "Lena Fischer",
+      "text": "Priority one, NetSuite hardening for Acme, Sam and Chris, done by October fifteenth. Priority two, notifications. Sam writes the API contract first, Omar builds against it, and Sam finishes the backend after NetSuite. Priority three, recently viewed boosting in search, Priya, in parallel.",
+      "startMs": 382078,
+      "endMs": 406359
+    },
+    {
+      "index": 55,
+      "speaker": "Alex Rivera",
+      "text": "And full personalization moves to Q1, with a proper scoping doc before then.",
+      "startMs": 406709,
+      "endMs": 412488
+    },
+    {
+      "index": 56,
+      "speaker": "Priya Nair",
+      "text": "I'm okay with that, if I can write the proposal this quarter, so we're not starting from zero in January.",
+      "startMs": 412838,
+      "endMs": 419118
+    },
+    {
+      "index": 57,
+      "speaker": "Lena Fischer",
+      "text": "Yes, please do. End of October?",
+      "startMs": 419468,
+      "endMs": 423472
+    },
+    {
+      "index": 58,
+      "speaker": "Priya Nair",
+      "text": "End of October works.",
+      "startMs": 423822,
+      "endMs": 425755
+    },
+    {
+      "index": 59,
+      "speaker": "Jordan Blake",
+      "text": "One more thing from the Acme side. They asked if they can see the load test results. Their IT lead is nervous after a bad experience with their last vendor.",
+      "startMs": 426105,
+      "endMs": 435566
+    },
+    {
+      "index": 60,
+      "speaker": "Chris Doyle",
+      "text": "I'd actually love that. It's a much better story than a slide that says we scale.",
+      "startMs": 435916,
+      "endMs": 442315
+    },
+    {
+      "index": 61,
+      "speaker": "Jordan Blake",
+      "text": "Great. I'll set up a review with their IT lead once Chris has results, and I'll confirm their exact go live date this week, so nobody's guessing.",
+      "startMs": 442665,
+      "endMs": 451535
+    },
+    {
+      "index": 62,
+      "speaker": "Maria Lopez",
+      "text": "Can I add one risk? If the load test finds something big, does notifications slip?",
+      "startMs": 451885,
+      "endMs": 459318
+    },
+    {
+      "index": 63,
+      "speaker": "Alex Rivera",
+      "text": "Honestly, yes. If NetSuite needs more than two weeks, notifications moves, not Acme. I'd rather we all agree on that now than argue about it in October.",
+      "startMs": 459668,
+      "endMs": 471976
+    },
+    {
+      "index": 64,
+      "speaker": "Omar Haddad",
+      "text": "That's fair. At least it's written down.",
+      "startMs": 472326,
+      "endMs": 475121
+    },
+    {
+      "index": 65,
+      "speaker": "Lena Fischer",
+      "text": "It will be. I'll write up the plan with the three priorities, the owners, and that trade off, and share it by Monday.",
+      "startMs": 475471,
+      "endMs": 483469
+    },
+    {
+      "index": 66,
+      "speaker": "Alex Rivera",
+      "text": "And let's check in on Sam's sequencing in two weeks, not at the end of the quarter.",
+      "startMs": 483819,
+      "endMs": 489263
+    },
+    {
+      "index": 67,
+      "speaker": "Lena Fischer",
+      "text": "Good call. I'll put it on the calendar. Anything else before we wrap?",
+      "startMs": 489613,
+      "endMs": 495617
+    },
+    {
+      "index": 68,
+      "speaker": "Chris Doyle",
+      "text": "Just a thank you to Maria. Those designs unblock a lot of people.",
+      "startMs": 495967,
+      "endMs": 501537
+    },
+    {
+      "index": 69,
+      "speaker": "Maria Lopez",
+      "text": "Thanks. Sorry it took so long.",
+      "startMs": 501887,
+      "endMs": 506065
+    },
+    {
+      "index": 70,
+      "speaker": "Lena Fischer",
+      "text": "Okay, great session. Thanks, everyone.",
+      "startMs": 506415,
+      "endMs": 511254
+    },
+    {
+      "index": 71,
+      "speaker": "Alex Rivera",
+      "text": "Thanks, all.",
+      "startMs": 511604,
+      "endMs": 513784
+    }
+  ]
+}

@@ -65,13 +65,15 @@ export default async function LandingPage() {
 
 // A static picture of the product, drawn with the same parts as the real
 // timeline — not a screenshot, so it stays crisp and on-palette.
+// Speakers and talk shares from the real "Q4 Planning" sample meeting (the
+// six who talked most); the bars are simplified.
 const HERO_SPEAKERS: { name: string; share: number; segs: [number, number][] }[] = [
-  { name: "Priya Nair", share: 24, segs: [[1, 7], [19, 23], [41, 47], [63, 66], [84, 90]] },
-  { name: "Alex Rivera", share: 21, segs: [[8, 12], [27, 31], [48, 51], [70, 76], [92, 96]] },
-  { name: "Sam Okafor", share: 14, segs: [[13, 16], [34, 37], [56, 60], [80, 83]] },
-  { name: "Maria Lopez", share: 17, segs: [[24, 26], [38, 40], [52, 55], [67, 69], [77, 79]] },
-  { name: "Chris Doyle", share: 13, segs: [[17, 18], [32, 33], [61, 62], [86, 88], [97, 99]] },
-  { name: "Jordan Blake", share: 11, segs: [[5, 6], [45, 46], [72, 73], [90, 91]] },
+  { name: "Lena Fischer", share: 25, segs: [[0, 6], [18, 21], [40, 43], [58, 62], [74, 82], [92, 97]] },
+  { name: "Alex Rivera", share: 14, segs: [[7, 9], [24, 26], [48, 51], [64, 67], [86, 90]] },
+  { name: "Jordan Blake", share: 13, segs: [[31, 36], [44, 46], [70, 73], [83, 85]] },
+  { name: "Priya Nair", share: 11, segs: [[10, 15], [47, 48], [68, 70], [76, 78]] },
+  { name: "Chris Doyle", share: 11, segs: [[36, 40], [52, 54], [72, 74], [90, 92]] },
+  { name: "Omar Haddad", share: 10, segs: [[15, 17], [22, 24], [27, 30], [51, 53], [63, 64]] },
 ];
 
 function HeroPreview() {
@@ -82,7 +84,7 @@ function HeroPreview() {
         <div className="mb-4 flex items-baseline justify-between">
           <div>
             <p className="font-serif text-lg font-semibold text-ink">Q4 Planning — Search &amp; Mobile</p>
-            <p className="text-xs text-ink-3">8 speakers · 14 min</p>
+            <p className="text-xs text-ink-3">8 speakers · 9 min</p>
           </div>
           <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-3">Who spoke when</span>
         </div>
@@ -139,8 +141,8 @@ function HeroPreview() {
       <div className="relative -mt-8 ml-auto mr-4 w-[85%] max-w-sm rounded-2xl border border-rule bg-card p-4 shadow-[0_24px_60px_-30px_rgba(29,27,22,0.4)] sm:mr-8">
         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-3">Action items</p>
         {[
-          { text: "Send Sam the ranking spec", who: "Priya Nair", at: "4:07" },
-          { text: "Chase design on notification settings", who: "Alex Rivera", at: "8:12" },
+          { text: "Send the final notification preference designs", who: "Maria Lopez", at: "1:51" },
+          { text: "Load test the NetSuite connector with Acme-sized data", who: "Chris Doyle", at: "6:22" },
         ].map((a) => (
           <div key={a.text} className="mt-2.5 flex items-start gap-3">
             <span className="mt-0.5 h-4 w-4 shrink-0 rounded-[5px] border-[1.5px] border-rule-2" />

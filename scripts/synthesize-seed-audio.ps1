@@ -3,7 +3,13 @@
 # timestamps so the seeded transcript is genuinely in sync with the audio — not
 # hand-guessed. Silence gaps are inserted between lines for natural pacing.
 #
-# Usage: powershell -File scripts/synthesize-seed-audio.ps1
+# Usage: powershell -File scripts/synthesize-seed-audio.ps1 [-Only <slug>]
+#
+# Only three voices ship with Windows (David, Mark, Zira), so a participant can
+# also set "rate" (SAPI -10..10) and "pitch" (e.g. 0.9 or 1.1, applied with the
+# bundled ffmpeg, tempo preserved) to stay distinguishable in larger meetings.
+
+param([string]$Only = "")
 
 Add-Type -AssemblyName System.Speech
 
@@ -24,12 +30,24 @@ New-Item -ItemType Directory -Force -Path $tmpDir | Out-Null
 
 function Read-WavPcm16Mono($path) {
     $bytes = [System.IO.File]::ReadAllBytes($path)
-    # Standard 44-byte canonical PCM WAV header written by SpeechSynthesizer
-    # for this fixed format; data starts at byte 44.
-    $dataBytes = New-Object byte[] ($bytes.Length - 44)
-    [System.Array]::Copy($bytes, 44, $dataBytes, 0, $dataBytes.Length)
-    return $dataBytes
+    # Walk the RIFF chunks to the "data" chunk rather than assuming a 44-byte
+    # header: ffmpeg's output can carry extra chunks.
+    $offset = 12
+    while ($offset + 8 -le $bytes.Length) {
+        $id = [System.Text.Encoding]::ASCII.GetString($bytes, $offset, 4)
+        $size = [System.BitConverter]::ToInt32($bytes, $offset + 4)
+        if ($id -eq "data") {
+            $size = [Math]::Min($size, $bytes.Length - $offset - 8)
+            $dataBytes = New-Object byte[] $size
+            [System.Array]::Copy($bytes, $offset + 8, $dataBytes, 0, $size)
+            return $dataBytes
+        }
+        $offset += 8 + $size + ($size % 2)
+    }
+    throw "No data chunk in $path"
 }
+
+$ffmpeg = Join-Path (Split-Path -Parent $PSScriptRoot) "node_modules\ffmpeg-static\ffmpeg.exe"
 
 function Write-WavHeader($stream, $dataLength) {
     $writer = New-Object System.IO.BinaryWriter($stream)
@@ -58,13 +76,20 @@ function Resolve-VoiceName($shortName) {
 }
 
 $jsonFiles = Get-ChildItem -Path $scriptsDir -Filter "*.json"
+if ($Only) { $jsonFiles = $jsonFiles | Where-Object { $_.BaseName -eq $Only } }
 
 foreach ($jsonFile in $jsonFiles) {
     $meeting = Get-Content $jsonFile.FullName -Raw | ConvertFrom-Json
     Write-Host "Synthesizing: $($meeting.title) ($($meeting.slug))"
 
     $voiceBySpeaker = @{}
-    foreach ($p in $meeting.participants) { $voiceBySpeaker[$p.name] = Resolve-VoiceName $p.voice }
+    $rateBySpeaker = @{}
+    $pitchBySpeaker = @{}
+    foreach ($p in $meeting.participants) {
+        $voiceBySpeaker[$p.name] = Resolve-VoiceName $p.voice
+        $rateBySpeaker[$p.name] = if ($null -ne $p.rate) { [int]$p.rate } else { 0 }
+        $pitchBySpeaker[$p.name] = if ($null -ne $p.pitch) { [double]$p.pitch } else { 1.0 }
+    }
 
     $silenceSamples = [int]([double]$GapMs / 1000.0 * $SampleRate)
     $silenceBytes = New-Object byte[] ($silenceSamples * $Channels * $BytesPerSample)
@@ -78,7 +103,7 @@ foreach ($jsonFile in $jsonFiles) {
         $voice = $voiceBySpeaker[$line.speaker]
         $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
         $synth.SelectVoice($voice)
-        $synth.Rate = 0
+        $synth.Rate = $rateBySpeaker[$line.speaker]
 
         $lineWavPath = Join-Path $tmpDir "$($meeting.slug)-line-$lineIndex.wav"
         $format = New-Object System.Speech.AudioFormat.SpeechAudioFormatInfo(
@@ -90,6 +115,17 @@ foreach ($jsonFile in $jsonFiles) {
         $synth.Speak($line.text)
         $synth.SetOutputToNull()
         $synth.Dispose()
+
+        $pitch = $pitchBySpeaker[$line.speaker]
+        if ([Math]::Abs($pitch - 1.0) -gt 0.001) {
+            $inv = [string]::Format([Globalization.CultureInfo]::InvariantCulture, "{0:0.####}", 1.0 / $pitch)
+            $rate = [string]::Format([Globalization.CultureInfo]::InvariantCulture, "{0:0}", $SampleRate * $pitch)
+            $shiftedPath = Join-Path $tmpDir "$($meeting.slug)-line-$lineIndex-shifted.wav"
+            & $ffmpeg -y -loglevel error -i $lineWavPath -af "asetrate=$rate,aresample=$SampleRate,atempo=$inv" -ac 1 -ar $SampleRate -c:a pcm_s16le -map_metadata -1 -fflags +bitexact -flags:a +bitexact $shiftedPath
+            if ($LASTEXITCODE -ne 0) { throw "ffmpeg pitch shift failed for line $lineIndex" }
+            Remove-Item $lineWavPath -ErrorAction SilentlyContinue
+            $lineWavPath = $shiftedPath
+        }
 
         $pcm = Read-WavPcm16Mono $lineWavPath
         $durationMs = [double]$pcm.Length / $BytesPerSecond * 1000.0

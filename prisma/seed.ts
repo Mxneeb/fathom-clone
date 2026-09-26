@@ -203,6 +203,55 @@ Next steps: a technical scoping doc for the NetSuite integration, and a proposal
     ],
   });
 
+  // The long, many-speaker case: eight people, one overloaded engineer, and a
+  // trade-off that has to be made explicit. Continues threads from the
+  // other samples (ranking launch, notifications blocked on design, the Acme
+  // deal's NetSuite deadline).
+  const q4Planning = loadTiming("q4-planning");
+  await seedMeeting({
+    timing: q4Planning,
+    summaries: [
+      {
+        template: "GENERAL",
+        content: `The team agreed three Q4 priorities, in order, and made the main trade-off explicit: if the NetSuite work overruns, notifications slips, not Acme.
+
+## Decisions
+- **NetSuite hardening for Acme** comes first: a load test with Acme-sized data, plus retry handling for NetSuite rate limits. Sam and Chris, done by 15 October.
+- **Mobile notifications** is second. Maria's preference designs are final; Sam writes the API contract first, Omar builds the mobile screen against a mock, and Sam finishes the backend after NetSuite.
+- **Recently viewed boosting** in search is third, run by Priya in parallel (about three weeks).
+- Full personalization moves to Q1, with a scoping proposal from Priya by the end of October.
+
+## Context
+- Search ranking shipped on 15 September; first-result click-through is up about 11% week over week.
+- Acme Logistics (around 400 shipments a week, growing 15% a quarter) wants to go live before its November peak. The NetSuite integration is the one real risk to the deal. Their ops director singled out how easy the demo was, and their IT lead wants to see the load test results.
+- Mobile crash reports doubled after the last release because of a bug on older Android phones; the fix ships Thursday.
+
+## Risks
+- Sam is needed on two of the three priorities.
+- If the load test turns up something big, notifications moves. The team agreed this now so it isn't argued about in October.`,
+      },
+    ],
+    actionItems: [
+      { text: "Send the final notification preference designs, with empty and error states", owner: "Maria Lopez", dueDate: new Date("2026-09-18T17:00:00.000Z"), at: (t) => t.includes("send the files over by friday") },
+      { text: "Give a real estimate for the notifications backend once the designs are in", owner: "Sam Okafor", dueDate: new Date("2026-09-16T17:00:00.000Z"), at: (t) => t.includes("yes, wednesday works") },
+      { text: "Start the mobile notification preferences screen", owner: "Omar Haddad", dueDate: new Date("2026-09-21T09:00:00.000Z"), at: (t) => t.includes("start on the mobile screen monday") },
+      { text: "Add older Android devices to the test lab and put the cost in the planning doc", owner: "Omar Haddad", at: (t) => t.includes("older devices to the test lab") },
+      { text: "Write the notifications API contract before switching to NetSuite", owner: "Sam Okafor", at: (t) => t.includes("write the api contract in the first two days") },
+      { text: "Load test the NetSuite connector with Acme-sized data and harden retries", owner: "Chris Doyle", dueDate: new Date("2026-10-15T17:00:00.000Z"), at: (t) => t.includes("priority one, netsuite hardening") },
+      { text: "Write the personalization proposal for Q1", owner: "Priya Nair", dueDate: new Date("2026-10-30T17:00:00.000Z"), at: (t) => t.includes("end of october works") },
+      { text: "Confirm Acme's go-live date and set up a load test review with their IT lead", owner: "Jordan Blake", at: (t) => t.includes("set up a review with their it lead") },
+      { text: "Share the Q4 plan: priorities, owners and the agreed trade-off", owner: "Lena Fischer", dueDate: new Date("2026-09-21T09:00:00.000Z"), at: (t) => t.includes("share it by monday") },
+      { text: "Schedule a check-in on Sam's sequencing in two weeks", owner: "Lena Fischer", at: (t) => t.includes("put it on the calendar") },
+    ],
+    highlights: [
+      { matcher: (t) => t.includes("the preferences screen is finished"), label: "POSITIVE_REACTION", note: "Notifications unblocked: designs final, tested with six customers." },
+      { matcher: (t) => t.includes("first demo that didn't make her feel"), label: "FEEDBACK", note: "Acme's ops director on the demo: ease of use is the differentiator." },
+      { matcher: (t) => t.includes("so sam is the bottleneck"), label: "NEEDS_REVIEW", note: "Capacity: Sam is needed on two of the three priorities." },
+      { matcher: (t) => t.includes("priority one, netsuite hardening"), label: "HIGHLIGHT", note: "The decision: three priorities, in order, with owners." },
+      { matcher: (t) => t.includes("if netsuite needs more than two weeks"), label: "NEEDS_REVIEW", note: "Agreed trade-off: notifications slips before Acme does." },
+    ],
+  });
+
   const standup = loadTiming("daily-standup");
   await seedMeeting({
     timing: standup,
