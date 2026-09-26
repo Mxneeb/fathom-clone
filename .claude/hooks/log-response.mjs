@@ -2,8 +2,10 @@
 // Claude Code Stop hook: appends the raw assistant response to .agent-logs/.
 // Logged fully raw — no redaction (the user's call; see CAPTURE-TEST.md).
 // Deliberately fails open (always exits 0) so a logging problem never blocks the session.
+import { spawn } from "node:child_process";
 import { appendFileSync, mkdirSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { appendLogEntry, extractLatestModel } from "./session-log.mjs";
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
@@ -46,12 +48,17 @@ try {
   // Also write the prompt+final-response-only markdown log the assignment
   // spec asks for. The transcript is complete for this turn by the time
   // Stop fires, so the model name read off it here is authoritative.
-  appendLogEntry({
-    sessionId,
-    type: "RESPONSE",
-    text: entry.content,
-    model: extractLatestModel(input.transcript_path),
-  });
+  const model = extractLatestModel(input.transcript_path);
+  const { num } = appendLogEntry({ sessionId, type: "RESPONSE", text: entry.content, model });
+
+  // Headless sessions haven't flushed the transcript yet at this point.
+  if (!model) {
+    spawn(process.execPath, [join(dirname(fileURLToPath(import.meta.url)), "fill-model.mjs"), sessionId, input.transcript_path, String(num)], {
+      detached: true,
+      stdio: "ignore",
+      windowsHide: true,
+    }).unref();
+  }
 } catch (err) {
   try {
     mkdirSync(logsDir, { recursive: true });
