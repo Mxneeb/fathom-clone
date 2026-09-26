@@ -60,6 +60,51 @@ const Lane = memo(function Lane({
   );
 });
 
+// A speaker's name; click to rename when the view is editable.
+function SpeakerName({ name, onRename }: { name: string; onRename?: (from: string, to: string) => Promise<void> }) {
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  if (!onRename) return <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{name}</span>;
+
+  if (editing) {
+    const finish = async (value: string) => {
+      const to = value.trim();
+      if (!to || to === name) return setEditing(false);
+      setSaving(true);
+      await onRename(name, to).catch(() => {});
+      setSaving(false);
+      setEditing(false);
+    };
+    return (
+      <input
+        autoFocus
+        defaultValue={name}
+        maxLength={40}
+        disabled={saving}
+        aria-label={`Rename ${name}`}
+        onFocus={(e) => e.currentTarget.select()}
+        onBlur={(e) => finish(e.currentTarget.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+          if (e.key === "Escape") setEditing(false);
+        }}
+        className="h-6 min-w-0 flex-1 rounded border border-ink-3 bg-paper px-1 text-[13px] text-ink outline-none"
+      />
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => setEditing(true)}
+      title="Click to rename"
+      className="min-w-0 flex-1 truncate rounded text-left text-[13px] text-ink decoration-ink-3 decoration-dotted underline-offset-2 hover:underline"
+    >
+      {name}
+    </button>
+  );
+}
+
 function PinGlyph({ pin, size = "md" }: { pin: TimelinePin; size?: "sm" | "md" }) {
   if (pin.kind === "highlight") {
     return (
@@ -86,6 +131,7 @@ export function TimelineMap({
   activeLine,
   pins,
   onSeek,
+  onRenameSpeaker,
 }: {
   lines: Line[];
   speakers: SpeakerStat[];
@@ -94,6 +140,8 @@ export function TimelineMap({
   activeLine: Line | null;
   pins: TimelinePin[];
   onSeek: (ms: number) => void;
+  /** Omitted on read-only (shared) views. */
+  onRenameSpeaker?: (from: string, to: string) => Promise<void>;
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [hoverMs, setHoverMs] = useState<number | null>(null);
@@ -134,7 +182,9 @@ export function TimelineMap({
             <PinGlyph size="sm" pin={{ kind: "action", id: "", ms: 0, done: false, text: "" }} />
             Action item
           </span>
-          <span className="hidden md:inline">Click anywhere to jump there</span>
+          <span className="hidden md:inline">
+            {onRenameSpeaker ? "Click a name to rename it, anywhere else to jump" : "Click anywhere to jump there"}
+          </span>
         </div>
       </div>
 
@@ -148,7 +198,7 @@ export function TimelineMap({
               title={`${s.name}: ${Math.round(s.share * 100)}% of the talking`}
             >
               <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: s.color }} />
-              <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{s.name}</span>
+              <SpeakerName name={s.name} onRename={onRenameSpeaker} />
               <span className="font-mono text-[11px] tabular-nums text-ink-3">{Math.round(s.share * 100)}%</span>
             </div>
           ))}

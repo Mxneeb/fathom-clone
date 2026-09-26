@@ -65,9 +65,11 @@ export default async function MeetingPage({
             <span>{formatDuration(meeting.durationSec)}</span>
             <span className="text-ink-3">·</span>
             <span>
-              {meeting.source === "UPLOAD" && speakerCount === 1
-                ? "Uploaded recording, speakers not separated"
-                : `${speakerCount} speakers`}
+              {meeting.speakerStatus === "PENDING" || meeting.speakerStatus === "PROCESSING"
+                ? "Separating speakers…"
+                : meeting.speakerStatus === "FAILED"
+                  ? "Speakers not separated"
+                  : `${speakerCount} ${speakerCount === 1 ? "speaker" : "speakers"}`}
             </span>
             {meeting.source === "SEED" && (
               <span className="rounded-full border border-rule-2 px-2 py-0.5 text-[11px] font-medium text-ink-3">
@@ -107,6 +109,8 @@ export default async function MeetingPage({
         }))}
         initialSummaries={meeting.summaries.map((s) => ({ id: s.id, template: s.template, content: s.content }))}
         initialSeekMs={seekMs}
+        speakerStatus={meeting.speakerStatus}
+        speakerError={meeting.speakerError}
       />
     </div>
   );

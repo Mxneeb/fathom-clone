@@ -8,8 +8,9 @@ import { z } from "zod";
 // The "upload a recording" entry point that stands in for real
 // Zoom/Meet/Teams bot-join capture — see research/fathom-teardown.md
 // "What I'd build first" #7. Real Whisper transcription (src/lib/ai.ts),
-// not a mock; speaker diarization is out of scope so every segment is
-// attributed to a single "Speaker" participant.
+// not a mock. Whisper doesn't separate speakers, so every segment starts out
+// as a single "Speaker"; separation by voice runs afterwards in the
+// background (src/app/api/meetings/[id]/speakers).
 //
 // The client has already uploaded the raw audio directly to Vercel Blob
 // (src/app/api/blob/upload-url/route.ts) before calling this route — we
@@ -67,6 +68,9 @@ export async function POST(req: NextRequest) {
       mediaUrl: blobUrl,
       mediaType,
       source: "UPLOAD",
+      // Whisper can't tell voices apart; the meeting page starts separation
+      // (src/lib/speaker-separation.ts) as soon as it opens.
+      speakerStatus: "PENDING",
     },
   });
 

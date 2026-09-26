@@ -21,6 +21,7 @@ export default async function MeetingsPage() {
       occurredAt: true,
       durationSec: true,
       source: true,
+      speakerStatus: true,
       transcriptLines: { select: { speakerName: true, startMs: true, endMs: true }, orderBy: { order: "asc" } },
       actionItems: { select: { done: true } },
       _count: { select: { highlights: true } },
@@ -88,6 +89,16 @@ export default async function MeetingsPage() {
                             {m.source === "SEED" && (
                               <span className="rounded-full border border-rule-2 px-2 py-px text-[11px] font-medium text-ink-3">
                                 Sample
+                              </span>
+                            )}
+                            {(m.speakerStatus === "PENDING" || m.speakerStatus === "PROCESSING") && (
+                              <span className="rounded-full bg-accent-soft px-2 py-px text-[11px] font-semibold text-accent-ink">
+                                Separating speakers…
+                              </span>
+                            )}
+                            {m.speakerStatus === "FAILED" && (
+                              <span className="rounded-full border border-bad/30 px-2 py-px text-[11px] font-medium text-bad">
+                                Speakers not separated
                               </span>
                             )}
                           </p>

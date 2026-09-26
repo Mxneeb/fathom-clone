@@ -27,6 +27,7 @@
     "prisma": "^7.10.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "sherpa-onnx-node": "^1.13.8",
     "zod": "^4.6.4"
   },
   "devDependencies": {

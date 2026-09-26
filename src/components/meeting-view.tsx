@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { speakerStats } from "@/lib/speakers";
+import { SpeakerStatusBanner, type SpeakerStatus } from "@/components/speaker-status-banner";
 import type { HighlightLabel } from "@/lib/highlights";
 import { TimelineMap, type TimelinePin } from "@/components/timeline-map";
 import { Transcript } from "@/components/transcript";
@@ -34,6 +36,8 @@ export function MeetingView({
   initialActionItems,
   initialSummaries,
   initialSeekMs,
+  speakerStatus = "NONE",
+  speakerError = null,
   readOnly = false,
 }: {
   meetingId: string;
@@ -46,9 +50,13 @@ export function MeetingView({
   initialSummaries: SummaryData[];
   /** From a search result or shared moment: start positioned here. */
   initialSeekMs?: number;
+  /** Background speaker separation, for uploaded recordings. */
+  speakerStatus?: SpeakerStatus;
+  speakerError?: string | null;
   /** Public share view: nothing can be changed. */
   readOnly?: boolean;
 }) {
+  const router = useRouter();
   const mediaRef = useRef<HTMLMediaElement | null>(null);
   const [currentMs, setCurrentMs] = useState(initialSeekMs ?? 0);
   const currentMsRef = useRef(currentMs);
@@ -59,6 +67,9 @@ export function MeetingView({
   const [highlights, setHighlights] = useState(initialHighlights);
   const [actionItems, setActionItems] = useState(initialActionItems);
   const [composerAt, setComposerAt] = useState<number | null>(null);
+  // Decided once, from the status the page opened with, so the banner stays
+  // mounted (to say "done") after the refresh that brings the new speakers.
+  const [showSpeakerBanner] = useState(!readOnly && speakerStatus !== "NONE" && speakerStatus !== "DONE");
 
   const totalMs = Math.max(durationMs, lines.at(-1)?.endMs ?? 0, 1000);
   const speakers = useMemo(() => speakerStats(lines), [lines]);
@@ -130,6 +141,19 @@ export function MeetingView({
   const skip = useCallback(
     (deltaMs: number) => seek(currentMsRef.current + deltaMs, !(mediaRef.current?.paused ?? true)),
     [seek]
+  );
+
+  const renameSpeaker = useCallback(
+    async (from: string, to: string) => {
+      const res = await fetch(`/api/meetings/${meetingId}/speakers`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ from, to }),
+      });
+      if (!res.ok) throw new Error("Couldn't rename the speaker");
+      router.refresh();
+    },
+    [meetingId, router]
   );
 
   const closeComposer = useCallback(() => setComposerAt(null), []);
@@ -204,6 +228,10 @@ export function MeetingView({
         <audio ref={(el) => void (mediaRef.current = el)} src={mediaUrl} preload="metadata" />
       )}
 
+      {showSpeakerBanner && (
+        <SpeakerStatusBanner meetingId={meetingId} initialStatus={speakerStatus} initialError={speakerError} />
+      )}
+
       <TimelineMap
         lines={lines}
         speakers={speakers}
@@ -212,6 +240,7 @@ export function MeetingView({
         activeLine={activeLine}
         pins={pins}
         onSeek={seek}
+        onRenameSpeaker={readOnly ? undefined : renameSpeaker}
       />
 
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">

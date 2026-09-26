@@ -192,8 +192,9 @@ export default function UploadPage() {
           summaries, action items, search and sharing.
         </p>
         <p className="mt-2">
-          One honest limit: Whisper doesn&apos;t tell voices apart, so an uploaded recording shows as a single speaker.
-          The sample meetings have real per-speaker timing.
+          Whisper doesn&apos;t tell voices apart, so after transcription Cue separates speakers by voice in the
+          background (open-source models, on our own server). The meeting opens straight away and updates itself when
+          that&apos;s done. It suggests names where the conversation makes them clear, and you can rename anyone.
         </p>
       </aside>
     </div>

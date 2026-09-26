@@ -87,6 +87,16 @@ enum MediaType {
   VIDEO
 }
 
+// Telling speakers apart runs in the background after an upload is
+// transcribed (src/lib/speaker-separation.ts). Sample meetings don't need it.
+enum SpeakerStatus {
+  NONE
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+}
+
 model Meeting {
   id          String        @id @default(cuid())
   ownerId     String
@@ -102,6 +112,10 @@ model Meeting {
   mediaType   MediaType
   source      MeetingSource @default(UPLOAD)
   createdAt   DateTime      @default(now())
+
+  speakerStatus    SpeakerStatus @default(NONE)
+  speakerStartedAt DateTime?
+  speakerError     String?
 
   participants    Participant[]
   transcriptLines TranscriptLine[]

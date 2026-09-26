@@ -50,3 +50,27 @@ export async function compressAudioForTranscription(
     await rm(dir, { recursive: true, force: true }).catch(() => {});
   }
 }
+
+// Writes raw 16kHz mono float samples (the input speaker separation needs)
+// to `outputPath`. The caller owns the file.
+export async function decodeForSpeakerSeparation(sourceUrl: string, outputPath: string) {
+  const dir = await mkdtemp(join(tmpdir(), "cue-decode-"));
+  const inputPath = join(dir, `input-${randomUUID()}`);
+  try {
+    const res = await fetch(sourceUrl);
+    if (!res.ok) throw new Error(`Failed to download source audio (${res.status})`);
+    await writeFile(inputPath, Buffer.from(await res.arrayBuffer()));
+
+    await new Promise<void>((resolve, reject) => {
+      ffmpeg(inputPath)
+        .audioChannels(1)
+        .audioFrequency(TARGET_SAMPLE_RATE_HZ)
+        .format("f32le")
+        .on("error", reject)
+        .on("end", () => resolve())
+        .save(outputPath);
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true }).catch(() => {});
+  }
+}

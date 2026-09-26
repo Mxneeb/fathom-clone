@@ -104,6 +104,94 @@ export async function generateSummary(
   return text.trim();
 }
 
+const SPEAKER_NAMES_TOOL = {
+  type: "function" as const,
+  function: {
+    name: "record_speaker_names",
+    description: "Records the real names of speakers that the transcript clearly identifies.",
+    parameters: {
+      type: "object",
+      properties: {
+        speakers: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              label: { type: "string", description: 'The speaker label, e.g. "Speaker 2".' },
+              name: { type: "string", description: "Their name as used in the meeting." },
+              evidence: {
+                type: "string",
+                description: "The exchange that shows it, quoted briefly (who said what, then who answered).",
+              },
+            },
+            required: ["label", "name", "evidence"],
+          },
+        },
+      },
+      required: ["speakers"],
+    },
+  },
+};
+
+// Speakers separated by voice come out as "Speaker 1", "Speaker 2"… This
+// looks for names the conversation itself gives away. Returns only confident
+// matches; everyone else keeps their label for the user to rename.
+export async function suggestSpeakerNames(
+  lines: TranscriptLineInput[],
+  labels: string[]
+): Promise<Record<string, string>> {
+  const groq = client();
+  // Names usually surface early (introductions, the first hand-offs); cap
+  // the input so a long meeting stays well inside the free tier's limits.
+  const transcript = transcriptToPlainText(lines).slice(0, 24_000);
+
+  const completion = await groq.chat.completions.create({
+    model: MODEL,
+    // A reasoning model: its thinking counts against this cap, and a
+    // tighter one truncated the answer before the tool call on long meetings.
+    max_tokens: 6000,
+    messages: [
+      {
+        role: "system",
+        content:
+          "You work out who is who in a meeting transcript. Speakers were separated by voice and " +
+          `labelled ${labels.join(", ")}. Read the whole meeting and name every speaker the ` +
+          "conversation identifies. The usual signs:\n" +
+          "- They introduce themselves: \"I'm Priya\", \"this is Omar from mobile\".\n" +
+          "- Someone hands over to them by name and that speaker is the one who answers: " +
+          "\"Priya, do you want to start?\" followed by Speaker 3 saying \"Sure...\" means Speaker 3 is Priya.\n" +
+          "- Someone introduces them (\"my colleague Chris from our solutions team\") and a new " +
+          "voice then speaks as that person (\"I'll mostly be listening in\").\n" +
+          "- They answer to their name: \"Sorry, Sam.\" followed by \"I'm used to it.\"\n" +
+          "- Someone thanks or addresses them by name right after they spoke.\n" +
+          "Check each name against the rest of the meeting; it should fit everything that speaker " +
+          "says. Do not guess from topics or job titles alone, and leave out speakers the " +
+          "conversation never identifies. Use each name at most once. Call record_speaker_names " +
+          "with what you found (quote the evidence), or with an empty list.",
+      },
+      { role: "user", content: `Meeting transcript:\n\n${transcript}` },
+    ],
+    tools: [SPEAKER_NAMES_TOOL],
+    tool_choice: "auto",
+  });
+
+  const toolCall = completion.choices[0]?.message?.tool_calls?.[0];
+  if (!toolCall || toolCall.type !== "function") return {};
+  const { speakers = [] } = JSON.parse(toolCall.function.arguments) as {
+    speakers?: { label: string; name: string }[];
+  };
+  const names: Record<string, string> = {};
+  const used = new Set<string>();
+  for (const { label, name } of speakers) {
+    const clean = name?.trim();
+    if (!labels.includes(label) || !clean || clean.length > 40 || /^speaker\s*\d+$/i.test(clean)) continue;
+    if (used.has(clean.toLowerCase())) continue;
+    used.add(clean.toLowerCase());
+    names[label] = clean;
+  }
+  return names;
+}
+
 export type GeneratedActionItem = { text: string; owner?: string; dueDate?: string; lineIndex?: number };
 
 const ACTION_ITEMS_TOOL = {

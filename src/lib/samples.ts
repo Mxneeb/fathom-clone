@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { del } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { SAMPLE_OWNER_ID } from "@/lib/sample-owner";
 
@@ -92,10 +93,17 @@ export async function copySampleMeetingsTo(userId: string) {
 
 export async function createGuestUser() {
   // Guests are disposable; clear out old ones (and, by cascade, everything
-  // they created) whenever a new one arrives.
-  await prisma.user.deleteMany({
-    where: { isGuest: true, createdAt: { lt: new Date(Date.now() - GUEST_TTL_MS) } },
+  // they created) whenever a new one arrives, including recordings they
+  // uploaded, which live in Blob storage rather than the database.
+  const stale = { isGuest: true, createdAt: { lt: new Date(Date.now() - GUEST_TTL_MS) } };
+  const uploads = await prisma.meeting.findMany({
+    where: { owner: stale, source: "UPLOAD" },
+    select: { mediaUrl: true },
   });
+  if (uploads.length > 0) {
+    await del(uploads.map((u) => u.mediaUrl)).catch((err) => console.error("guest upload cleanup failed", err));
+  }
+  await prisma.user.deleteMany({ where: stale });
   const user = await prisma.user.create({ data: { name: "Guest", isGuest: true } });
   await copySampleMeetingsTo(user.id);
   return user;
