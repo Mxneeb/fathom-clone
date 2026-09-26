@@ -224,8 +224,13 @@ function isToolResult(entry) {
   return Array.isArray(content) && content.some((c) => c.type === "tool_result");
 }
 
+// Interactive sessions mark a typed prompt with origin.kind "human" (and
+// promptSource "typed"); headless `claude -p` sessions write no origin, only
+// promptSource "sdk". Transcript entries that aren't prompts (interrupt
+// markers, slash-command echoes, compaction summaries) have neither.
 export function isHumanPrompt(entry) {
-  return entry.type === "user" && entry.origin?.kind === "human" && !isToolResult(entry);
+  if (entry.type !== "user" || isToolResult(entry)) return false;
+  return entry.origin ? entry.origin.kind === "human" : Boolean(entry.promptSource);
 }
 
 export function isQuestionAnswer(entry) {
