@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { generateSummary } from "@/lib/ai";
+import { aiErrorMessage, generateSummary } from "@/lib/ai";
 import { resolveLineCitations } from "@/lib/citations";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -46,10 +46,7 @@ export async function POST(
     );
   } catch (err) {
     console.error("generateSummary failed", err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "generation failed" },
-      { status: 502 }
-    );
+    return NextResponse.json({ error: aiErrorMessage(err, "a summary") }, { status: 502 });
   }
 
   const summary = await prisma.summary.create({

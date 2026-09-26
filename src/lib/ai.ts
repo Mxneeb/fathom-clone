@@ -20,6 +20,19 @@ function client() {
   return new Groq({ apiKey });
 }
 
+// What to tell the person when a model call fails, e.g. aiErrorMessage(err,
+// "action items"). Groq's raw errors (status codes, JSON, the half-written
+// reply) are for the logs.
+export function aiErrorMessage(err: unknown, what: string) {
+  const status = (err as { status?: number }).status;
+  const text = err instanceof Error ? err.message : String(err);
+  if (status === 413 || /request too large|tokens per minute/i.test(text)) {
+    return `This meeting is too long for the AI's free-tier limit, so ${what} couldn't be generated.`;
+  }
+  if (status === 429) return `The AI is at its limit for the minute. Try again shortly.`;
+  return `Couldn't generate ${what}. Try again.`;
+}
+
 export type TranscriptLineInput = { speakerName: string; text: string };
 
 export type TranscribedSegment = { startMs: number; endMs: number; text: string };
@@ -353,7 +366,10 @@ export async function generateActionItems(
 
   const completion = await groq.chat.completions.create({
     model: MODEL,
-    max_tokens: 1024,
+    // A reasoning model: its thinking counts against this cap. At 1024 the
+    // reply was cut off mid-list on a real meeting, and Groq rejected the
+    // unfinished tool call ("Failed to parse tool call arguments as JSON").
+    max_tokens: 6000,
     messages: [
       {
         role: "system",

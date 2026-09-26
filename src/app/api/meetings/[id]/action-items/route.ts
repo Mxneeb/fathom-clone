@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { generateActionItems } from "@/lib/ai";
+import { aiErrorMessage, generateActionItems } from "@/lib/ai";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -33,10 +33,7 @@ export async function POST(
     );
   } catch (err) {
     console.error("generateActionItems failed", err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "generation failed" },
-      { status: 502 }
-    );
+    return NextResponse.json({ error: aiErrorMessage(err, "action items") }, { status: 502 });
   }
 
   const created = await prisma.$transaction(

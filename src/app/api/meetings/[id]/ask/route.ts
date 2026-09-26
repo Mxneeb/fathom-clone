@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { answerQuestion } from "@/lib/ai";
+import { aiErrorMessage, answerQuestion } from "@/lib/ai";
 import { resolveLineCitations } from "@/lib/citations";
 
 const bodySchema = z.object({ question: z.string().trim().min(2).max(500) });
@@ -29,6 +29,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ answer: resolveLineCitations(answer, meeting.transcriptLines) });
   } catch (err) {
     console.error("answerQuestion failed", err);
-    return NextResponse.json({ error: "Couldn't answer that right now. Try again." }, { status: 502 });
+    return NextResponse.json({ error: aiErrorMessage(err, "an answer") }, { status: 502 });
   }
 }
