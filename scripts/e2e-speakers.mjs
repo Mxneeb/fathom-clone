@@ -4,24 +4,18 @@
 // polls until it finishes, then scores the result against the sample's known
 // speaker timing and cleans up (guest account + uploaded file).
 //
-// Usage: node scripts/e2e-speakers.mjs [baseUrl] [sample-slug | path/to/x.timing.json]
-//   A timing file names its recording (mediaFile) beside it; see
-//   scripts/build-long-meeting.mjs for a long one.
+// Usage: node scripts/e2e-speakers.mjs [baseUrl] [sample-slug]
 import "dotenv/config";
 import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import pg from "pg";
 import { upload } from "@vercel/blob/client";
 import { del } from "@vercel/blob";
 
 const BASE = process.argv[2] || "http://localhost:3100";
-const SAMPLE = process.argv[3] || "sales-discovery";
-const timingPath = SAMPLE.endsWith(".timing.json")
-  ? SAMPLE
-  : join(import.meta.dirname, "..", "public", "seed-media", `${SAMPLE}.timing.json`);
-const mediaDir = dirname(timingPath);
-const timing = JSON.parse(readFileSync(timingPath, "utf8").replace(/^﻿/, ""));
-const SLUG = timing.slug;
+const SLUG = process.argv[3] || "sales-discovery";
+const mediaDir = join(import.meta.dirname, "..", "public", "seed-media");
+const timing = JSON.parse(readFileSync(join(mediaDir, `${SLUG}.timing.json`), "utf8").replace(/^﻿/, ""));
 
 const login = await fetch(`${BASE}/api/demo`, { method: "POST", redirect: "manual" });
 const cookie = (login.headers.getSetCookie?.() ?? []).map((c) => c.split(";")[0]).join("; ");
@@ -44,7 +38,7 @@ t0 = Date.now();
 const start = await fetch(`${BASE}/api/meetings/${meetingId}/speakers`, { method: "POST", headers: { Cookie: cookie } });
 console.log(`start: ${start.status}`);
 let status;
-while (Date.now() - t0 < 7 * 60 * 1000) {
+while (Date.now() - t0 < 6 * 60 * 1000) {
   await new Promise((r) => setTimeout(r, 3000));
   status = await (await fetch(`${BASE}/api/meetings/${meetingId}/speakers`, { headers: { Cookie: cookie } })).json();
   if (status.status === "DONE" || status.status === "FAILED") break;

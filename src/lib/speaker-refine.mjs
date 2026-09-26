@@ -54,12 +54,9 @@ function embed(extractor, audio, sampleRate) {
 }
 
 /**
- * Returns the cleaned segments, and each resulting speaker's voice (indexed
- * by speaker id) for linkPieces.
  * @param {Float32Array} samples 16kHz mono audio
  * @param {{start:number,end:number,speaker:number}[]} segments diarization output
  * @param {{createStream:Function,isReady:Function,compute:Function}} extractor sherpa-onnx SpeakerEmbeddingExtractor
- * @returns {{segments:{start:number,end:number,speaker:number}[], voices:{emb:number[],dur:number}[]}}
  */
 export function refineSpeakers(samples, segments, extractor, sampleRate = 16000) {
   const clusters = new Map();
@@ -76,7 +73,7 @@ export function refineSpeakers(samples, segments, extractor, sampleRate = 16000)
   let groups = [...clusters.values()]
     .filter((c) => c.dur >= MIN_SPEECH_SEC && c.emb)
     .map((c) => ({ ids: [c.id], dur: c.dur, emb: c.emb }));
-  if (groups.length === 0) return { segments, voices: [] };
+  if (groups.length === 0) return segments;
   for (;;) {
     let best = null;
     for (let i = 0; i < groups.length; i++) {
@@ -120,62 +117,5 @@ export function refineSpeakers(samples, segments, extractor, sampleRate = 16000)
   // Group ids become the new speaker ids, biggest speaker first.
   const order = groups.map((g, gi) => gi).sort((x, y) => groups[y].dur - groups[x].dur);
   const rank = new Map(order.map((gi, r) => [gi, r]));
-  return {
-    segments: segments.map((s) => ({ ...s, speaker: rank.get(groupOf.get(s.speaker) ?? nearestGroup(s)) })),
-    voices: order.map((gi) => ({ emb: Array.from(groups[gi].emb), dur: groups[gi].dur })),
-  };
-}
-
-// A long recording is separated in pieces (one function run each, to fit
-// the time limit), so every piece numbers its speakers on its own. This
-// joins them by voice: the most similar pair of speakers from different
-// pieces is merged first, until no pair clears the bar. Two speakers from
-// the same piece are never merged: that piece already heard them apart.
-export const LINK_SIMILARITY = 0.6;
-
-/**
- * @param {{offset:number, segments:{start:number,end:number,speaker:number}[], voices:{emb:number[],dur:number}[]}[]} pieces
- *   each piece's refineSpeakers output, with its start in the recording (seconds)
- * @returns {{start:number,end:number,speaker:number}[]} segments on the recording's clock
- */
-export function linkPieces(pieces, threshold = LINK_SIMILARITY) {
-  let groups = [];
-  pieces.forEach((p, pi) =>
-    p.voices.forEach((v, speaker) => groups.push({ members: [`${pi}:${speaker}`], pieces: new Set([pi]), dur: v.dur, emb: v.emb }))
-  );
-  for (;;) {
-    let best = null;
-    for (let i = 0; i < groups.length; i++) {
-      for (let j = i + 1; j < groups.length; j++) {
-        if ([...groups[i].pieces].some((pi) => groups[j].pieces.has(pi))) continue;
-        const sim = cosine(groups[i].emb, groups[j].emb);
-        if (!best || sim > best.sim) best = { i, j, sim };
-      }
-    }
-    if (!best || best.sim < threshold) break;
-    const a = groups[best.i];
-    const b = groups[best.j];
-    const merged = {
-      members: [...a.members, ...b.members],
-      pieces: new Set([...a.pieces, ...b.pieces]),
-      dur: a.dur + b.dur,
-      emb: normalize(a.emb.map((x, k) => x * a.dur + b.emb[k] * b.dur)),
-    };
-    groups = groups.filter((_, k) => k !== best.i && k !== best.j).concat(merged);
-  }
-
-  const groupOf = new Map();
-  groups.forEach((g, gi) => g.members.forEach((m) => groupOf.set(m, gi)));
-  const all = pieces.flatMap((p, pi) =>
-    p.segments.map((s) => ({ start: s.start + p.offset, end: s.end + p.offset, speaker: groupOf.get(`${pi}:${s.speaker}`) ?? -1 }))
-  );
-  // A piece with too little speech to take a voice sample from: its speech
-  // goes to whoever spoke nearest in time.
-  const linked = all.filter((s) => s.speaker >= 0);
-  if (linked.length === 0) return all.map((s) => ({ ...s, speaker: 0 }));
-  return all.map((s) => {
-    if (s.speaker >= 0) return s;
-    const distance = (k) => Math.max(k.start - s.end, s.start - k.end, 0);
-    return { ...s, speaker: linked.reduce((a, b) => (distance(b) < distance(a) ? b : a)).speaker };
-  });
+  return segments.map((s) => ({ ...s, speaker: rank.get(groupOf.get(s.speaker) ?? nearestGroup(s)) }));
 }

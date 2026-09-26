@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { transcribeAudio } from "@/lib/ai";
 import { compressAudioForTranscription } from "@/lib/audio";
+import { MAX_SEPARATION_SEC } from "@/lib/speaker-separation";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -69,8 +70,9 @@ export async function POST(req: NextRequest) {
       mediaType,
       source: "UPLOAD",
       // Whisper can't tell voices apart; the meeting page starts separation
-      // (src/lib/speaker-separation.ts) as soon as it opens.
-      speakerStatus: "PENDING",
+      // (src/lib/speaker-separation.ts) as soon as it opens. Recordings too
+      // long to separate keep a single speaker.
+      speakerStatus: durationSec > MAX_SEPARATION_SEC ? "NONE" : "PENDING",
     },
   });
 

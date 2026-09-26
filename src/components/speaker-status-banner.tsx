@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CloseIcon } from "@/components/icons";
 
-export type SpeakerStatus = "NONE" | "PENDING" | "PROCESSING" | "DONE" | "FAILED";
+// TOO_LONG isn't stored: the meeting page shows it for an upload longer
+// than speaker separation handles (src/lib/speaker-separation.ts).
+export type SpeakerStatus = "NONE" | "PENDING" | "PROCESSING" | "DONE" | "FAILED" | "TOO_LONG";
 
 // Shown on an uploaded meeting while its speakers are separated in the
 // background. Starts the job if nobody has yet, polls, and refreshes the
@@ -22,6 +24,7 @@ export function SpeakerStatusBanner({
   const [status, setStatus] = useState<SpeakerStatus>(initialStatus === "PENDING" ? "PROCESSING" : initialStatus);
   const [error, setError] = useState(initialError);
   const [finished, setFinished] = useState(false);
+  const [noteDismissed, setNoteDismissed] = useState(false);
   const kickedOff = useRef(false);
 
   useEffect(() => {
@@ -55,6 +58,21 @@ export function SpeakerStatusBanner({
     await fetch(`/api/meetings/${meetingId}/speakers`, { method: "POST" }).catch(() => {});
   }
 
+  if (status === "TOO_LONG") {
+    if (noteDismissed) return null;
+    return (
+      <div role="status" className="mb-4 flex items-start gap-3 rounded-xl border border-rule bg-card px-4 py-3 text-sm">
+        <p className="min-w-0 flex-1 text-ink-2">
+          <span className="font-medium text-ink">One speaker for this recording.</span> Telling voices apart works for
+          recordings up to 30 minutes on this server, and this one is longer. Click the name on the timeline to rename
+          it.
+        </p>
+        <button type="button" onClick={() => setNoteDismissed(true)} aria-label="Dismiss" className="rounded p-0.5 text-ink-3 hover:text-ink">
+          <CloseIcon size={14} />
+        </button>
+      </div>
+    );
+  }
   if (status === "PROCESSING") {
     return (
       <div role="status" className="mb-4 flex items-center gap-3 rounded-xl border border-rule bg-card px-4 py-3 text-sm">

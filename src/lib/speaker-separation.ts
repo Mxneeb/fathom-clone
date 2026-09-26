@@ -1,14 +1,13 @@
 import { execFile } from "node:child_process";
-import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { mkdtemp, rm } from "node:fs/promises";
 import { cpus, tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { prisma } from "@/lib/prisma";
-import { decodeForSpeakerSeparation, downloadToFile, splitForSpeakerSeparation } from "@/lib/audio";
+import { decodeForSpeakerSeparation } from "@/lib/audio";
 import { suggestSpeakerNames } from "@/lib/ai";
 import { writeChapters } from "@/lib/chapters";
-import { linkPieces } from "@/lib/speaker-refine.mjs";
 
 // Whisper transcribes words but can't tell voices apart, so an upload starts
 // as a single "Speaker". This runs afterwards, in the background: open-source
@@ -17,13 +16,8 @@ import { linkPieces } from "@/lib/speaker-refine.mjs";
 // transcript line goes to the speaker it overlaps most, and the model then
 // suggests real names where the conversation makes them clear.
 //
-// Separation runs at ~8x real time here and a function run is capped at 5
-// minutes, so a long recording is cut into pieces that are separated in
-// parallel runs (the piece endpoint) and then joined by voice (linkPieces).
-//
 // Settings chosen with scripts/eval-diarization.mjs against the sample
-// meetings (86% of lines attributed correctly), pieces with
-// scripts/eval-long-meeting.mjs. See models/diarization.
+// meetings (86% of lines attributed correctly). See models/diarization.
 
 const execFileAsync = promisify(execFile);
 const MODELS = join(process.cwd(), "models", "diarization");
@@ -31,18 +25,16 @@ const WORKER = join(process.cwd(), "src", "lib", "speaker-separation-worker.mjs"
 // A run that hasn't finished after this long was cut off (function timeout)
 // and may be claimed again.
 export const STALE_AFTER_MS = 6 * 60 * 1000;
-// The longest piece: about a minute of CPU, and at 64kbps ~3.4MB, under the
-// 4.5MB request body limit. A recording up to this long is one piece,
-// separated in the job's own run.
-const PIECE_SEC = 7 * 60;
-
-type Segment = { start: number; end: number; speaker: number };
-export type PieceResult = { segments: Segment[]; voices: { emb: number[]; dur: number }[] };
+// Separation runs at ~8x real time here, inside a 5-minute function run, so
+// longer recordings keep a single speaker, renamable from the timeline.
+export const MAX_SEPARATION_SEC = 30 * 60;
 
 // A failure the meeting page can show as is. Anything else is logged and
 // replaced with a generic message: raw errors (ffmpeg output, command lines)
 // mean nothing to the person reading them.
 class SeparationError extends Error {}
+
+type Segment = { start: number; end: number; speaker: number };
 
 function diarizationConfig() {
   const numThreads = Math.min(Math.max(cpus().length, 1), 4);
@@ -58,101 +50,34 @@ function diarizationConfig() {
   };
 }
 
-// Separates one audio file in this run, in a worker process.
-export async function separateFile(inputPath: string): Promise<PieceResult> {
-  const pcmPath = `${inputPath}.f32`;
+async function diarize(mediaUrl: string): Promise<Segment[]> {
+  const dir = await mkdtemp(join(tmpdir(), "cue-speakers-"));
   try {
-    await decodeForSpeakerSeparation(inputPath, pcmPath).catch((err) => {
+    const pcmPath = join(dir, `${randomUUID()}.f32`);
+    await decodeForSpeakerSeparation(mediaUrl, pcmPath).catch((err) => {
       console.error("decoding for speaker separation failed", err);
-      throw new SeparationError("Couldn't read the audio in this recording.");
+      throw new SeparationError(
+        /ENOSPC|No space left|code 228/.test(String(err))
+          ? "This recording is too large to process on this server."
+          : "Couldn't read the audio in this recording."
+      );
     });
     try {
       const { stdout } = await execFileAsync(process.execPath, [WORKER, pcmPath, JSON.stringify(diarizationConfig())], {
         maxBuffer: 64 * 1024 * 1024,
         timeout: 4 * 60 * 1000,
       });
-      return JSON.parse(stdout) as PieceResult;
+      return JSON.parse(stdout) as Segment[];
     } catch (err) {
+      // The raw error carries the whole command line; users get a reason.
       console.error("speaker separation worker failed", err);
       const timedOut = (err as { killed?: boolean }).killed;
       throw new SeparationError(
         timedOut
-          ? "Separating speakers took longer than the server allows."
+          ? "The recording is too long to separate speakers within the server's time limit."
           : "Speaker separation crashed while processing this recording."
       );
     }
-  } finally {
-    await rm(pcmPath, { force: true }).catch(() => {});
-  }
-}
-
-// Proves a piece request came from a separation job in this app: the piece
-// endpoint is reachable from outside, and separating audio is expensive.
-export function pieceToken(meetingId: string) {
-  const secret = process.env.AUTH_SECRET;
-  if (!secret) throw new Error("AUTH_SECRET is not set");
-  return createHmac("sha256", secret).update(`speaker-piece:${meetingId}`).digest("hex");
-}
-
-export function isPieceToken(meetingId: string, token: string | null) {
-  const expected = Buffer.from(pieceToken(meetingId));
-  const given = Buffer.from(token ?? "");
-  return given.length === expected.length && timingSafeEqual(given, expected);
-}
-
-// One piece, separated in a run of its own. Retried once, since one failed
-// piece fails the whole recording.
-async function separateRemotely(origin: string, meetingId: string, piece: { path: string; offsetSec: number }) {
-  const body = await readFile(piece.path);
-  for (let attempt = 1; ; attempt++) {
-    try {
-      const res = await fetch(`${origin}/api/meetings/${meetingId}/speakers/piece`, {
-        method: "POST",
-        headers: { "Content-Type": "audio/ogg", "X-Cue-Piece": pieceToken(meetingId) },
-        body,
-      });
-      if (!res.ok) throw new Error(`piece at ${piece.offsetSec}s: ${res.status} ${(await res.text()).slice(0, 300)}`);
-      return { offset: piece.offsetSec, ...((await res.json()) as PieceResult) };
-    } catch (err) {
-      console.error(`speaker separation piece failed (attempt ${attempt})`, err);
-      if (attempt === 2) throw new SeparationError("Part of the recording couldn't be processed.");
-    }
-  }
-}
-
-async function findSpeakers(meeting: { id: string; mediaUrl: string; durationSec: number }, origin: string) {
-  const dir = await mkdtemp(join(tmpdir(), "cue-speakers-"));
-  const t0 = Date.now();
-  const since = () => `${((Date.now() - t0) / 1000).toFixed(1)}s`;
-  try {
-    const source = join(dir, "source");
-    await downloadToFile(meeting.mediaUrl, source).catch((err) => {
-      console.error("downloading for speaker separation failed", err);
-      throw new SeparationError(
-        (err as { code?: string }).code === "ENOSPC"
-          ? "This recording is too large to process on this server."
-          : "Couldn't download the recording."
-      );
-    });
-    // Equal pieces. The slack keeps a recording that runs a little past its
-    // last transcribed line from spilling into a sliver of an extra piece.
-    const count = Math.max(1, Math.ceil(meeting.durationSec / PIECE_SEC));
-    const pieceSec = Math.min(PIECE_SEC, Math.ceil(meeting.durationSec / count) + 30);
-    const pieces = await splitForSpeakerSeparation(source, dir, pieceSec).catch((err) => {
-      console.error("splitting for speaker separation failed", err);
-      throw new SeparationError(
-        /No space left|code 228/.test(String(err))
-          ? "This recording is too large to process on this server."
-          : "Couldn't read the audio in this recording."
-      );
-    });
-    await rm(source, { force: true });
-    console.log(`speakers ${meeting.id}: ${pieces.length} piece(s) of up to ${pieceSec}s ready at ${since()}`);
-
-    if (pieces.length === 1) return (await separateFile(pieces[0].path)).segments;
-    const results = await Promise.all(pieces.map((p) => separateRemotely(origin, meeting.id, p)));
-    console.log(`speakers ${meeting.id}: pieces separated at ${since()}`);
-    return linkPieces(results);
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => {});
   }
@@ -175,12 +100,14 @@ function speakerForLine(line: { startMs: number; endMs: number }, segments: Segm
 }
 
 // Atomically take the job, so a second trigger (another tab, a retry) can't
-// run it twice. Returns false if it's done or already running.
+// run it twice. Returns false if it's done, already running, or the
+// recording is too long to separate.
 async function claim(meetingId: string) {
   const { count } = await prisma.meeting.updateMany({
     where: {
       id: meetingId,
       source: "UPLOAD",
+      durationSec: { lte: MAX_SEPARATION_SEC },
       OR: [
         { speakerStatus: { in: ["PENDING", "FAILED"] } },
         { speakerStatus: "PROCESSING", speakerStartedAt: { lt: new Date(Date.now() - STALE_AFTER_MS) } },
@@ -191,9 +118,7 @@ async function claim(meetingId: string) {
   return count === 1;
 }
 
-// `origin` is this app's own address, where pieces of a long recording are
-// sent to be separated in parallel.
-export async function separateSpeakers(meetingId: string, origin: string) {
+export async function separateSpeakers(meetingId: string) {
   if (!(await claim(meetingId))) return;
 
   // Topics for the timeline come from the model and don't depend on who's
@@ -206,17 +131,12 @@ export async function separateSpeakers(meetingId: string, origin: string) {
   try {
     const meeting = await prisma.meeting.findUniqueOrThrow({
       where: { id: meetingId },
-      select: {
-        id: true,
-        mediaUrl: true,
-        durationSec: true,
-        transcriptLines: { orderBy: { order: "asc" }, select: { id: true, startMs: true, endMs: true, text: true } },
-      },
+      select: { mediaUrl: true, transcriptLines: { orderBy: { order: "asc" }, select: { id: true, startMs: true, endMs: true, text: true } } },
     });
     const lines = meeting.transcriptLines;
     if (lines.length === 0) throw new SeparationError("This recording has no transcript to split.");
 
-    const segments = await findSpeakers(meeting, origin);
+    const segments = await diarize(meeting.mediaUrl);
     if (segments.length === 0) throw new SeparationError("No speech was detected in the recording.");
 
     // "Speaker 1" is whoever speaks first.

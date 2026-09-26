@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { MAX_SEPARATION_SEC } from "@/lib/speaker-separation";
 import { formatDay, formatDuration, formatTime } from "@/lib/format";
 import { MeetingView } from "@/components/meeting-view";
 import { ShareButton } from "@/components/share-button";
@@ -45,6 +46,11 @@ export default async function MeetingPage({
 
   const seekMs = t && Number.isFinite(Number(t)) ? Math.max(0, Number(t)) : undefined;
   const speakerCount = new Set(meeting.transcriptLines.map((l) => l.speakerName)).size;
+  // An upload too long to separate keeps one speaker; the page says why.
+  const speakerStatus =
+    meeting.source === "UPLOAD" && meeting.speakerStatus !== "DONE" && meeting.durationSec > MAX_SEPARATION_SEC
+      ? "TOO_LONG"
+      : meeting.speakerStatus;
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 pt-6 sm:px-6">
@@ -66,9 +72,9 @@ export default async function MeetingPage({
             <span>{formatDuration(meeting.durationSec)}</span>
             <span className="text-ink-3">·</span>
             <span>
-              {meeting.speakerStatus === "PENDING" || meeting.speakerStatus === "PROCESSING"
+              {speakerStatus === "PENDING" || speakerStatus === "PROCESSING"
                 ? "Separating speakers…"
-                : meeting.speakerStatus === "FAILED"
+                : speakerStatus === "FAILED"
                   ? "Speakers not separated"
                   : `${speakerCount} ${speakerCount === 1 ? "speaker" : "speakers"}`}
             </span>
@@ -111,8 +117,8 @@ export default async function MeetingPage({
         initialSummaries={meeting.summaries.map((s) => ({ id: s.id, template: s.template, content: s.content }))}
         chapters={meeting.chapters.map((c) => ({ id: c.id, title: c.title, startMs: c.startMs, endMs: c.endMs }))}
         initialSeekMs={seekMs}
-        speakerStatus={meeting.speakerStatus}
-        speakerError={meeting.speakerError}
+        speakerStatus={speakerStatus}
+        speakerError={speakerStatus === "TOO_LONG" ? null : meeting.speakerError}
       />
     </div>
   );
