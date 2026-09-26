@@ -53,9 +53,20 @@ that means "now". It's deliberately calm, and deliberately unlike the dark video
 - **Stubbed, on purpose:** there is no bot that joins live Zoom, Meet or Teams calls. That's
   real-time audio infrastructure and out of scope, so you upload a recording instead, as Fathom's own
   onboarding test call does. The upload page says so.
-- **Honest limit:** Whisper doesn't tell voices apart, so an uploaded recording appears as a single
-  speaker. The sample meetings are synthesized speech with exact per-speaker timing (see below),
-  which is how the multi-speaker timeline is demonstrated.
+- **Speakers in uploads, without a paid service:** Whisper doesn't tell voices apart, so after
+  transcription Cue separates speakers by voice in the background with open-source models
+  (sherpa-onnx: pyannote segmentation + 3D-Speaker ERes2Net embeddings, on CPU, on our own server).
+  The meeting opens immediately, shows "working out who's speaking", and updates itself in place
+  when done. The model then names speakers where the conversation gives them away (introductions,
+  hand-offs, answering to a name). Anyone can be renamed from the timeline, and renaming one speaker
+  to another's name merges them.
+  - Measured against the sample meetings' known timing (`scripts/eval-diarization.mjs`,
+    `scripts/e2e-speakers.mjs`): 86% of transcript lines on the right speaker on average, 91% on the
+    eight-person call. Naming recovered 6 of the 8 people on that call; the other two are never named
+    aloud. It suggested no wrong name on any sample.
+  - Limits: on Vercel it runs at about 8× real time, so recordings up to roughly half an hour fit
+    the 5-minute function limit; longer ones keep a single speaker. Two people with very similar voices
+    can merge into one.
 - **Left out:** team analytics, CRM sync, coaching, calendar integration and live in-meeting notes.
   The time went into making one meeting as navigable as possible instead.
 
@@ -72,7 +83,8 @@ stay distinguishable) with transcript timing measured from the synthesis itself,
 ## Stack
 
 Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · Prisma 7 + Postgres (Prisma Postgres) ·
-Auth.js · Groq (Whisper + chat) · Vercel Blob for uploads · deployed on Vercel.
+Auth.js · Groq (Whisper + chat) · sherpa-onnx (open-source speaker diarization) · Vercel Blob for
+uploads · deployed on Vercel.
 
 ## Running it locally
 

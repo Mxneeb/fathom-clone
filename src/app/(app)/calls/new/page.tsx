@@ -194,7 +194,9 @@ export default function UploadPage() {
         <p className="mt-2">
           Whisper doesn&apos;t tell voices apart, so after transcription Cue separates speakers by voice in the
           background (open-source models, on our own server). The meeting opens straight away and updates itself when
-          that&apos;s done. It suggests names where the conversation makes them clear, and you can rename anyone.
+          that&apos;s done, usually within a minute or two. It suggests names where the conversation makes them clear,
+          and you can rename anyone. On this server that works for recordings up to about half an hour; longer ones
+          keep a single speaker.
         </p>
       </aside>
     </div>
