@@ -7,13 +7,16 @@
 // stdout: JSON array of { start, end, speaker } segments (seconds).
 import { readFileSync } from "node:fs";
 import sherpa from "sherpa-onnx-node";
+import { refineSpeakers } from "./speaker-refine.mjs";
 
 const [pcmPath, configJson] = process.argv.slice(2);
+const config = JSON.parse(configJson);
 const raw = readFileSync(pcmPath);
 const samples =
   raw.byteOffset % 4 === 0
     ? new Float32Array(raw.buffer, raw.byteOffset, Math.floor(raw.byteLength / 4))
     : new Float32Array(raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength));
 
-const diarization = new sherpa.OfflineSpeakerDiarization(JSON.parse(configJson));
-process.stdout.write(JSON.stringify(diarization.process(samples)));
+const segments = new sherpa.OfflineSpeakerDiarization(config).process(samples);
+const extractor = new sherpa.SpeakerEmbeddingExtractor(config.embedding);
+process.stdout.write(JSON.stringify(refineSpeakers(samples, segments, extractor)));

@@ -16,6 +16,7 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/meetings/*/speakers": [
       "./src/lib/speaker-separation-worker.mjs",
+      "./src/lib/speaker-refine.mjs",
       "./models/diarization/*.onnx",
       "./node_modules/sherpa-onnx-node/**/*",
       "./node_modules/sherpa-onnx-linux-x64/**/*",

@@ -2,7 +2,8 @@
 // meetings, whose true per-speaker timing is known exactly.
 //
 // Usage: node scripts/eval-diarization.mjs <models-dir> [embedding.onnx ...]
-//          [--threshold=0.5,0.7] [--shift=0.1] [--int8]
+//          [--threshold=0.5,0.7] [--shift=0.1] [--int8] [--refine]
+//   --refine applies the same clean-up pass as production (src/lib/speaker-refine.mjs).
 //   <models-dir> holds sherpa-onnx-pyannote-segmentation-3-0/model.onnx and
 //   the embedding models. Prints, per meeting: speakers found vs. true count,
 //   the share of speech time attributed to the right person, and run time.
@@ -11,6 +12,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import ffmpeg from "ffmpeg-static";
 import sherpa from "sherpa-onnx-node";
+import { refineSpeakers } from "../src/lib/speaker-refine.mjs";
 
 const args = process.argv.slice(2);
 const modelsDir = args[0];
@@ -104,11 +106,13 @@ for (const embedding of embeddings) {
     let totalLineAcc = 0;
     let totalSec = 0;
     let totalAudio = 0;
-    console.log(`\n${embedding}  threshold=${threshold}  shift=${windowShiftRatio}  seg=${segModel}`);
+    const extractor = "refine" in flags ? new sherpa.SpeakerEmbeddingExtractor({ model: join(modelsDir, embedding), numThreads: 2 }) : null;
+    console.log(`\n${embedding}  threshold=${threshold}  shift=${windowShiftRatio}  seg=${segModel}${extractor ? "  +refine" : ""}`);
     for (const m of meetings) {
       const samples = audio.get(m.slug);
       const t0 = performance.now();
-      const segments = sd.process(samples);
+      const raw = sd.process(samples);
+      const segments = extractor ? refineSpeakers(samples, raw, extractor) : raw;
       const sec = (performance.now() - t0) / 1000;
       const { accuracy, lineAccuracy, found } = score(segments, m.lines);
       const trueCount = new Set(m.lines.map((l) => l.speaker)).size;
