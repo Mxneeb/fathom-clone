@@ -1,5 +1,5 @@
 import Groq from "groq-sdk";
-import { numberedTranscript } from "@/lib/citations";
+import { numberedTranscript, transcriptOutline } from "@/lib/citations";
 
 // Real Groq-backed generation for the two priority-#2/#3 features: AI
 // summaries (2 templates, not Fathom's full 16-template picklist — see
@@ -163,10 +163,13 @@ export async function generateChapters(
           'title ("Search, notifications, support" is three chapters). Titles are 2-5 words and ' +
           'specific to what was discussed ("Acme\'s NetSuite risk", "Notifications unblocked"), never ' +
           'generic ("Discussion", "Updates"). Each transcript line starts with its number; give the ' +
-          "number of the line where each chapter begins. The first chapter begins at line 0. Call " +
-          "record_chapters.",
+          "number of the line where each chapter begins (a long meeting's transcript is shortened: " +
+          "lines are cut short and some left out, but keep their numbers). The first chapter begins " +
+          `at line 0, and together the chapters cover the whole meeting, through line ${lines.length - 1}; ` +
+          "a topic that comes back later gets a chapter there too. Call record_chapters.",
       },
-      { role: "user", content: `Meeting transcript:\n\n${numberedTranscript(lines)}` },
+      // ~5,500 tokens, inside the free tier's per-minute allowance.
+      { role: "user", content: `Meeting transcript:\n\n${transcriptOutline(lines, 22_000)}` },
     ],
     tools: [CHAPTERS_TOOL],
     tool_choice: "auto",

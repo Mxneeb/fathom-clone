@@ -30,12 +30,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 // Starts (or retries) separation. Responds straight away; the page polls.
-export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const meeting = await ownedMeeting((await params).id);
   if (!meeting) return NextResponse.json({ error: "not found" }, { status: 404 });
   if (meeting.source !== "UPLOAD") return NextResponse.json({ error: "not an upload" }, { status: 400 });
 
-  after(() => separateSpeakers(meeting.id));
+  after(() => separateSpeakers(meeting.id, req.nextUrl.origin));
   return NextResponse.json({ status: "PROCESSING" }, { status: 202 });
 }
 

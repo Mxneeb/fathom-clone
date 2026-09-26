@@ -29,3 +29,19 @@ export function stripCitations(text: string) {
 export function numberedTranscript(lines: { speakerName: string; text: string }[]) {
   return lines.map((l, i) => `[${i}] ${l.speakerName}: ${l.text}`).join("\n");
 }
+
+// The same, squeezed under `maxChars` for work that only needs the outline
+// (finding topics): an hour-long transcript is several times Groq's free
+// tier allowance of 8,000 tokens a minute. Lines keep their numbers but are
+// cut to their first words, and if that's still too long only every nth
+// line is kept.
+export function transcriptOutline(lines: { speakerName: string; text: string }[], maxChars: number) {
+  const full = numberedTranscript(lines);
+  if (full.length <= maxChars) return full;
+  const clipped = lines.map((l, i) => {
+    const words = l.text.split(/\s+/);
+    return `[${i}] ${l.speakerName}: ${words.length > 12 ? `${words.slice(0, 12).join(" ")}…` : l.text}`;
+  });
+  const step = Math.ceil(clipped.reduce((n, l) => n + l.length + 1, 0) / maxChars);
+  return clipped.filter((_, i) => i % step === 0).join("\n");
+}

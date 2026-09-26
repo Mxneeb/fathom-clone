@@ -4,7 +4,8 @@
 // in native code should only take down this process.
 //
 // argv: <path to raw 16kHz mono f32le audio> <config JSON>
-// stdout: JSON array of { start, end, speaker } segments (seconds).
+// stdout: JSON { segments: [{ start, end, speaker }] (seconds), voices } (see
+// refineSpeakers).
 import { readFileSync } from "node:fs";
 import sherpa from "sherpa-onnx-node";
 import { refineSpeakers } from "./speaker-refine.mjs";
