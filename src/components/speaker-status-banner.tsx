@@ -43,6 +43,7 @@ export function SpeakerStatusBanner({
       } else if (body.status === "FAILED") {
         setStatus("FAILED");
         setError(body.error);
+        router.refresh(); // topics may have been written even so
       }
     }, 4000);
     return () => clearInterval(timer);

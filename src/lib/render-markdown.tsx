@@ -1,14 +1,37 @@
 import type { ReactNode } from "react";
+import { formatClock } from "@/lib/format";
 
 // Renders the small markdown subset the summary model produces (headings,
 // bullet and numbered lists, simple tables, **bold**, `code`) as React
-// nodes. Text is never injected as HTML: summaries come from a model reading
-// an uploaded recording and are shown on public share pages too.
-function inline(text: string): ReactNode[] {
+// nodes, plus [t=83000] citations (src/lib/citations.ts) as chips that jump
+// to that moment. Text is never injected as HTML: summaries come from a
+// model reading an uploaded recording and are shown on public share pages.
+type Seek = (ms: number) => void;
+
+function inline(text: string, onSeek?: Seek): ReactNode[] {
   return text
-    .split(/(\*\*[^*]+\*\*|`[^`]+`)/g)
+    .split(/(\*\*[^*]+\*\*|`[^`]+`|\[t=\d+\])/g)
     .filter(Boolean)
     .map((part, i) => {
+      const cite = part.match(/^\[t=(\d+)\]$/);
+      if (cite) {
+        const ms = Number(cite[1]);
+        return onSeek ? (
+          <button
+            key={i}
+            type="button"
+            onClick={() => onSeek(ms)}
+            aria-label={`Jump to ${formatClock(ms)}`}
+            className="mx-0.5 inline-block translate-y-[-1px] rounded border border-rule bg-paper px-1 align-middle font-mono text-[10.5px] leading-4 text-ink-3 hover:border-accent hover:text-accent"
+          >
+            {formatClock(ms)}
+          </button>
+        ) : (
+          <span key={i} className="mx-0.5 font-mono text-[10.5px] text-ink-3">
+            {formatClock(ms)}
+          </span>
+        );
+      }
       if (part.length > 4 && part.startsWith("**") && part.endsWith("**")) {
         return (
           <strong key={i} className="font-semibold text-ink">
@@ -34,7 +57,7 @@ const cells = (row: string) =>
     .split("|")
     .map((c) => c.trim());
 
-export function renderMarkdown(md: string): ReactNode[] {
+export function renderMarkdown(md: string, onSeek?: Seek): ReactNode[] {
   const out: ReactNode[] = [];
   let list: { ordered: boolean; items: string[] } | null = null;
   let table: string[][] | null = null;
@@ -48,7 +71,7 @@ export function renderMarkdown(md: string): ReactNode[] {
           className={`${list.ordered ? "list-decimal" : "list-disc"} space-y-1.5 pl-5 font-serif text-[15px] leading-relaxed text-ink-2 marker:text-ink-3`}
         >
           {list.items.map((item, i) => (
-            <li key={i}>{inline(item)}</li>
+            <li key={i}>{inline(item, onSeek)}</li>
           ))}
         </Tag>
       );
@@ -63,7 +86,7 @@ export function renderMarkdown(md: string): ReactNode[] {
               <tr>
                 {head.map((c, i) => (
                   <th key={i} className="border-b border-rule py-1.5 pr-3 font-medium text-ink">
-                    {inline(c)}
+                    {inline(c, onSeek)}
                   </th>
                 ))}
               </tr>
@@ -73,7 +96,7 @@ export function renderMarkdown(md: string): ReactNode[] {
                 <tr key={r}>
                   {row.map((c, i) => (
                     <td key={i} className="border-b border-rule/60 py-1.5 pr-3 align-top text-ink-2">
-                      {inline(c)}
+                      {inline(c, onSeek)}
                     </td>
                   ))}
                 </tr>
@@ -120,7 +143,7 @@ export function renderMarkdown(md: string): ReactNode[] {
       flush();
       out.push(
         <p key={out.length} className="font-serif text-[15px] leading-relaxed text-ink-2">
-          {inline(line)}
+          {inline(line, onSeek)}
         </p>
       );
     }

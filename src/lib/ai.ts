@@ -1,4 +1,5 @@
 import Groq from "groq-sdk";
+import { numberedTranscript } from "@/lib/citations";
 
 // Real Groq-backed generation for the two priority-#2/#3 features: AI
 // summaries (2 templates, not Fathom's full 16-template picklist — see
@@ -71,36 +72,144 @@ function transcriptToPlainText(lines: TranscriptLineInput[]) {
   return lines.map((l) => `${l.speakerName}: ${l.text}`).join("\n");
 }
 
+// Every point links back to where it was said: the model cites numbered
+// transcript lines, which src/lib/citations.ts turns into timestamps.
+const CITE = `Each transcript line starts with its number in brackets. After every point you make,
+cite the line or lines it comes from, like "Search is about 70% done [#3]" or "[#12, #15]".
+Cite one or two lines per point, each number written out (no ranges), only numbers that appear in
+the transcript.`;
+
 const TEMPLATE_PROMPTS: Record<"GENERAL" | "SALES", string> = {
-  GENERAL: `You are Fathom's meeting-summary AI. Write a concise, well-structured markdown
+  GENERAL: `You are Cue's meeting-summary AI. Write a concise, well-structured markdown
 summary of the meeting transcript below, covering: what was discussed, decisions made, and
 any notable context. Use short headings and bullet points. Do not invent details that
-aren't in the transcript. Do not include a title heading, start straight with content.`,
-  SALES: `You are Fathom's sales-call summary AI, using a BANT-style framework. Analyze the
+aren't in the transcript. Do not include a title heading, start straight with content.
+${CITE}`,
+  SALES: `You are Cue's sales-call summary AI, using a BANT-style framework. Analyze the
 sales call transcript below and produce a markdown summary with these sections in order:
 **Budget**, **Authority**, **Need**, **Timeline**, and a final **Recommended next step**.
 If the transcript doesn't clearly cover one of those areas, say so briefly rather than
-inventing information. Do not include a title heading, start straight with content.`,
+inventing information. Do not include a title heading, start straight with content.
+${CITE}`,
 };
 
+// Returns markdown with [#n] line citations; the caller resolves them.
 export async function generateSummary(
   lines: TranscriptLineInput[],
   template: "GENERAL" | "SALES"
 ): Promise<string> {
   const groq = client();
-  const transcript = transcriptToPlainText(lines);
 
   const completion = await groq.chat.completions.create({
     model: MODEL,
-    max_tokens: 1024,
+    // Reasoning counts against this cap; 1024 truncated longer answers.
+    max_tokens: 6000,
     messages: [
       { role: "system", content: TEMPLATE_PROMPTS[template] },
-      { role: "user", content: `Meeting transcript:\n\n${transcript}` },
+      { role: "user", content: `Meeting transcript:\n\n${numberedTranscript(lines)}` },
     ],
   });
 
   const text = completion.choices[0]?.message?.content;
   if (!text) throw new Error("Groq response contained no text content");
+  return text.trim();
+}
+
+const CHAPTERS_TOOL = {
+  type: "function" as const,
+  function: {
+    name: "record_chapters",
+    description: "Records the meeting's topics as consecutive chapters.",
+    parameters: {
+      type: "object",
+      properties: {
+        chapters: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string", description: "2-5 words, specific to what was discussed." },
+              startLine: { type: "integer", description: "Number of the transcript line where it begins." },
+            },
+            required: ["title", "startLine"],
+          },
+        },
+      },
+      required: ["chapters"],
+    },
+  },
+};
+
+// Splits the meeting into topics for the timeline. Returns chapters sorted
+// by start line, the first starting at line 0.
+export async function generateChapters(
+  lines: TranscriptLineInput[],
+  durationMin: number
+): Promise<{ title: string; startLine: number }[]> {
+  const groq = client();
+  const target = Math.min(10, Math.max(3, Math.round(durationMin / 1.5)));
+
+  const completion = await groq.chat.completions.create({
+    model: MODEL,
+    max_tokens: 4000,
+    messages: [
+      {
+        role: "system",
+        content:
+          "You split meeting transcripts into chapters: consecutive stretches that each cover one " +
+          `topic, so someone can jump to the part they need. This meeting runs about ${Math.round(durationMin)} ` +
+          `minutes; aim for around ${target} chapters (at most 10), starting a new one wherever the ` +
+          "conversation moves to a different topic. One topic per chapter: never join topics in one " +
+          'title ("Search, notifications, support" is three chapters). Titles are 2-5 words and ' +
+          'specific to what was discussed ("Acme\'s NetSuite risk", "Notifications unblocked"), never ' +
+          'generic ("Discussion", "Updates"). Each transcript line starts with its number; give the ' +
+          "number of the line where each chapter begins. The first chapter begins at line 0. Call " +
+          "record_chapters.",
+      },
+      { role: "user", content: `Meeting transcript:\n\n${numberedTranscript(lines)}` },
+    ],
+    tools: [CHAPTERS_TOOL],
+    tool_choice: "auto",
+  });
+
+  const toolCall = completion.choices[0]?.message?.tool_calls?.[0];
+  if (!toolCall || toolCall.type !== "function") throw new Error("The model returned no chapters.");
+  const { chapters = [] } = JSON.parse(toolCall.function.arguments) as {
+    chapters?: { title: string; startLine: number }[];
+  };
+  const seen = new Set<number>();
+  const clean = chapters
+    .map((c) => ({ title: c.title?.trim().slice(0, 60), startLine: Math.round(c.startLine) }))
+    .filter((c) => c.title && c.startLine >= 0 && c.startLine < lines.length && !seen.has(c.startLine) && seen.add(c.startLine))
+    .sort((a, b) => a.startLine - b.startLine);
+  if (clean.length === 0) throw new Error("The model returned no usable chapters.");
+  clean[0].startLine = 0;
+  return clean;
+}
+
+// Answers a question from the transcript alone. Returns markdown with [#n]
+// line citations; the caller resolves them.
+export async function answerQuestion(lines: TranscriptLineInput[], question: string): Promise<string> {
+  const groq = client();
+
+  const completion = await groq.chat.completions.create({
+    model: MODEL,
+    max_tokens: 4000,
+    messages: [
+      {
+        role: "system",
+        content:
+          "You answer questions about one meeting, using only its transcript. Be brief and direct: " +
+          "a sentence or two, or a few bullets when listing things. Name people as they appear in " +
+          "the transcript. If the transcript doesn't answer the question, say so plainly instead of " +
+          `guessing. ${CITE}`,
+      },
+      { role: "user", content: `Meeting transcript:\n\n${numberedTranscript(lines)}\n\nQuestion: ${question}` },
+    ],
+  });
+
+  const text = completion.choices[0]?.message?.content;
+  if (!text) throw new Error("The model returned no answer.");
   return text.trim();
 }
 

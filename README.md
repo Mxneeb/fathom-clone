@@ -21,17 +21,24 @@ watching the whole thing.
 
 So every meeting in Cue opens on a **timeline map**:
 
+- **Topics across the top**: the AI splits the meeting into chapters ("The Acme deal", "Capacity
+  trade-off"), drawn as bands over the lanes. On an hour-long call that's the fastest way to find
+  your spot; click one to jump to where it starts.
 - **One lane per speaker**, with every line they spoke drawn in their colour and their share of the
   talking beside their name. You can see at a glance who dominated, who went quiet, and where the
-  heated stretch was.
+  heated stretch was. Click a name to show only what that person said in the transcript (pick
+  several to follow a back-and-forth).
 - **Moments pinned in time**: highlights (◆) and action items (●) sit above the lanes where they
   happened. Hover to read one, click to hear it.
 - **A playhead across everything**. Click anywhere on the map to jump there.
 
 Everything else hangs off that same clock:
 
-- **Brief**: an AI summary (General, or a Sales/BANT read), action items with their owner, due date
-  and a timestamp that jumps to where each was committed, and highlights with notes.
+- **Brief**: an AI summary (General, or a Sales/BANT read) where every point carries the timestamps
+  it came from, action items with their owner, due date and a timestamp that jumps to where each was
+  committed, and highlights with notes.
+- **Ask the meeting**: type a question ("what did we decide about notifications?") and get an answer
+  from the transcript alone, citing the moments it came from. Click a citation to hear it.
 - **Transcript**: grouped into speaker turns, synced to playback, following along until you scroll
   away (then "Back to now"), with find-in-transcript for long calls.
 - **Player bar**: ±15s, scrubber, 1×–2× speed, and keyboard control (space, ←/→, **H** to

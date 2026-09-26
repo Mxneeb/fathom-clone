@@ -33,6 +33,8 @@ export const Transcript = memo(function Transcript({
   onSeek,
   onHighlightLine,
   followSignal,
+  speakerFilter,
+  onClearFilter,
 }: {
   lines: Line[];
   colorBySpeaker: Map<string, string>;
@@ -43,6 +45,9 @@ export const Transcript = memo(function Transcript({
   onHighlightLine?: (line: Line) => void;
   /** Bumped by the parent on every seek; resumes following playback. */
   followSignal: number;
+  /** Speakers picked on the timeline; empty means everyone. */
+  speakerFilter: Set<string>;
+  onClearFilter: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const lineRefs = useRef(new Map<string, HTMLDivElement>());
@@ -52,10 +57,17 @@ export const Transcript = memo(function Transcript({
   const [query, setQuery] = useState("");
   const [matchPos, setMatchPos] = useState(0);
 
+  const filtering = speakerFilter.size > 0;
+  const visible = useMemo(
+    () => (filtering ? lines.filter((l) => speakerFilter.has(l.speakerName)) : lines),
+    [lines, speakerFilter, filtering]
+  );
+  const position = useMemo(() => new Map(lines.map((l, i) => [l.id, i])), [lines]);
+
   const q = query.trim();
   const matchIds = useMemo(
-    () => (q.length >= 2 ? lines.filter((l) => l.text.toLowerCase().includes(q.toLowerCase())).map((l) => l.id) : []),
-    [lines, q]
+    () => (q.length >= 2 ? visible.filter((l) => l.text.toLowerCase().includes(q.toLowerCase())).map((l) => l.id) : []),
+    [visible, q]
   );
 
   const highlightByLine = useMemo(() => {
@@ -130,6 +142,19 @@ export const Transcript = memo(function Transcript({
         </form>
       </header>
 
+      {filtering && (
+        <div className="flex items-center gap-2 border-b border-rule/70 bg-paper-2/60 px-5 py-2 text-xs text-ink-2">
+          <span>
+            Only{" "}
+            <span className="font-semibold text-ink">{[...speakerFilter].join(", ")}</span> · {visible.length} of{" "}
+            {lines.length} lines
+          </span>
+          <button type="button" onClick={onClearFilter} className="ml-auto font-medium text-accent hover:underline">
+            Show everyone
+          </button>
+        </div>
+      )}
+
       <div className="relative min-h-0">
         <div
           ref={containerRef}
@@ -137,13 +162,23 @@ export const Transcript = memo(function Transcript({
           onTouchMove={() => setPausedAt(followSignal)}
           className="relative max-h-[60vh] overflow-y-auto px-3 py-3 lg:max-h-[calc(100vh-11rem)]"
         >
-          {lines.map((line, i) => {
-            const newTurn = i === 0 || lines[i - 1].speakerName !== line.speakerName;
+          {visible.map((line, i) => {
+            const prev = visible[i - 1];
+            // Other people spoke in between: say so, so the gap isn't silent.
+            const skipped = filtering && prev && position.get(line.id)! !== position.get(prev.id)! + 1;
+            const newTurn = i === 0 || prev.speakerName !== line.speakerName || skipped;
             const active = line.id === activeLineId;
             const h = highlightByLine.get(line.id);
             const isMatch = matchIds[matchPos] === line.id;
             return (
               <div key={line.id} ref={(el) => void (el ? lineRefs.current.set(line.id, el) : lineRefs.current.delete(line.id))}>
+                {skipped && (
+                  <div className="my-2 flex items-center gap-2 px-2 text-[10px] uppercase tracking-wider text-ink-3" aria-hidden>
+                    <span className="h-px flex-1 bg-rule" />
+                    others
+                    <span className="h-px flex-1 bg-rule" />
+                  </div>
+                )}
                 {newTurn && (
                   <div className={`flex items-center gap-2 px-2 pb-1 ${i === 0 ? "" : "pt-4"}`}>
                     <span className="h-2 w-2 rounded-sm" style={{ background: colorBySpeaker.get(line.speakerName) }} />

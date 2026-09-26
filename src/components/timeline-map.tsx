@@ -6,6 +6,7 @@ import type { SpeakerStat } from "@/lib/speakers";
 import { HIGHLIGHT_LABELS, type HighlightLabel } from "@/lib/highlights";
 
 type Line = { id: string; speakerName: string; startMs: number; endMs: number };
+export type ChapterData = { id: string; title: string; startMs: number; endMs: number };
 
 export type TimelinePin =
   | { kind: "highlight"; id: string; ms: number; label: HighlightLabel; text: string }
@@ -31,11 +32,13 @@ const Lane = memo(function Lane({
   color,
   totalMs,
   activeLineId,
+  dimmed,
 }: {
   lines: Line[];
   color: string;
   totalMs: number;
   activeLineId: string | null;
+  dimmed: boolean;
 }) {
   return (
     <>
@@ -44,14 +47,14 @@ const Lane = memo(function Lane({
         return (
           <span
             key={l.id}
-            className={`absolute bottom-1.5 top-1.5 rounded-[3px] ${
+            className={`absolute bottom-1.5 top-1.5 rounded-[3px] transition-opacity ${
               active ? "ring-2 ring-ink/70 ring-offset-1 ring-offset-card" : ""
             }`}
             style={{
               left: `${(l.startMs / totalMs) * 100}%`,
               width: `max(3px, ${((l.endMs - l.startMs) / totalMs) * 100}%)`,
               background: color,
-              opacity: active ? 1 : 0.8,
+              opacity: dimmed ? 0.2 : active ? 1 : 0.8,
             }}
           />
         );
@@ -60,29 +63,48 @@ const Lane = memo(function Lane({
   );
 });
 
-// A speaker's name; click to rename when the view is editable.
-function SpeakerName({ name, onRename }: { name: string; onRename?: (from: string, to: string) => Promise<void> }) {
+function PencilIcon() {
+  return (
+    <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+      <path d="M4 20h4L19 9l-4-4L4 16z" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// A speaker row's label: the name toggles the transcript filter; the pencil
+// (editable views only) renames.
+function SpeakerLabel({
+  speaker,
+  selected,
+  filtering,
+  onToggle,
+  onRename,
+}: {
+  speaker: SpeakerStat;
+  selected: boolean;
+  filtering: boolean;
+  onToggle: () => void;
+  onRename?: (from: string, to: string) => Promise<void>;
+}) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  if (!onRename) return <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{name}</span>;
-
-  if (editing) {
+  if (editing && onRename) {
     const finish = async (value: string) => {
       const to = value.trim();
-      if (!to || to === name) return setEditing(false);
+      if (!to || to === speaker.name) return setEditing(false);
       setSaving(true);
-      await onRename(name, to).catch(() => {});
+      await onRename(speaker.name, to).catch(() => {});
       setSaving(false);
       setEditing(false);
     };
     return (
       <input
         autoFocus
-        defaultValue={name}
+        defaultValue={speaker.name}
         maxLength={40}
         disabled={saving}
-        aria-label={`Rename ${name}`}
+        aria-label={`Rename ${speaker.name}`}
         onFocus={(e) => e.currentTarget.select()}
         onBlur={(e) => finish(e.currentTarget.value)}
         onKeyDown={(e) => {
@@ -93,15 +115,32 @@ function SpeakerName({ name, onRename }: { name: string; onRename?: (from: strin
       />
     );
   }
+
   return (
-    <button
-      type="button"
-      onClick={() => setEditing(true)}
-      title="Click to rename"
-      className="min-w-0 flex-1 truncate rounded text-left text-[13px] text-ink decoration-ink-3 decoration-dotted underline-offset-2 hover:underline"
-    >
-      {name}
-    </button>
+    <span className="group/name flex min-w-0 flex-1 items-center gap-1">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-pressed={selected}
+        title={selected ? `Show everyone` : `Show only ${speaker.name} in the transcript`}
+        className={`min-w-0 truncate rounded text-left text-[13px] hover:underline ${
+          selected ? "font-semibold text-ink" : filtering ? "text-ink-3" : "text-ink"
+        }`}
+      >
+        {speaker.name}
+      </button>
+      {onRename && (
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          aria-label={`Rename ${speaker.name}`}
+          title="Rename"
+          className="shrink-0 rounded p-0.5 text-ink-3 opacity-0 hover:text-ink focus:opacity-100 group-hover/name:opacity-100"
+        >
+          <PencilIcon />
+        </button>
+      )}
+    </span>
   );
 }
 
@@ -130,8 +169,12 @@ export function TimelineMap({
   currentMs,
   activeLine,
   pins,
+  chapters,
+  speakerFilter,
+  onToggleSpeaker,
   onSeek,
   onRenameSpeaker,
+  onFindTopics,
 }: {
   lines: Line[];
   speakers: SpeakerStat[];
@@ -139,13 +182,20 @@ export function TimelineMap({
   currentMs: number;
   activeLine: Line | null;
   pins: TimelinePin[];
+  chapters: ChapterData[];
+  speakerFilter: Set<string>;
+  onToggleSpeaker: (name: string) => void;
   onSeek: (ms: number) => void;
-  /** Omitted on read-only (shared) views. */
+  /** The next two are omitted on read-only (shared) views. */
   onRenameSpeaker?: (from: string, to: string) => Promise<void>;
+  onFindTopics?: () => Promise<void>;
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [hoverMs, setHoverMs] = useState<number | null>(null);
   const [tip, setTip] = useState<TimelinePin | null>(null);
+  const [topicsState, setTopicsState] = useState<{ busy: boolean; error: string | null }>({ busy: false, error: null });
+  const filtering = speakerFilter.size > 0;
+  const showTopics = chapters.length > 0 || Boolean(onFindTopics);
 
   const linesBySpeaker = useMemo(() => {
     const map = new Map<string, Line[]>();
@@ -169,6 +219,17 @@ export function TimelineMap({
   const edgeShift = (ms: number) =>
     ms / totalMs < 0.18 ? "translate-x-0" : ms / totalMs > 0.82 ? "-translate-x-full" : "-translate-x-1/2";
 
+  async function findTopics() {
+    if (!onFindTopics) return;
+    setTopicsState({ busy: true, error: null });
+    try {
+      await onFindTopics();
+      setTopicsState({ busy: false, error: null });
+    } catch (e) {
+      setTopicsState({ busy: false, error: e instanceof Error ? e.message : "Couldn't find topics." });
+    }
+  }
+
   return (
     <section aria-label="Meeting timeline" className="rounded-2xl border border-rule bg-card px-4 pb-3 pt-4 sm:px-5">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
@@ -182,23 +243,31 @@ export function TimelineMap({
             <PinGlyph size="sm" pin={{ kind: "action", id: "", ms: 0, done: false, text: "" }} />
             Action item
           </span>
-          <span className="hidden md:inline">
-            {onRenameSpeaker ? "Click a name to rename it, anywhere else to jump" : "Click anywhere to jump there"}
-          </span>
+          <span className="hidden md:inline">Click a name to show only them · anywhere else to jump</span>
         </div>
       </div>
 
       <div className="flex gap-3">
         <div className="w-24 shrink-0 sm:w-44">
+          {showTopics && <div className={`${ROW} flex items-center text-[11px] text-ink-3`}>Topics</div>}
           <div className={`${ROW} flex items-center text-[11px] text-ink-3`}>Moments</div>
           {speakers.map((s) => (
             <div
               key={s.name}
-              className={`${ROW} flex min-w-0 items-center gap-2`}
+              className={`${ROW} -mx-1 flex min-w-0 items-center gap-2 rounded px-1 ${speakerFilter.has(s.name) ? "bg-paper-2" : ""}`}
               title={`${s.name}: ${Math.round(s.share * 100)}% of the talking`}
             >
-              <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: s.color }} />
-              <SpeakerName name={s.name} onRename={onRenameSpeaker} />
+              <span
+                className="h-2.5 w-2.5 shrink-0 rounded-sm"
+                style={{ background: s.color, opacity: filtering && !speakerFilter.has(s.name) ? 0.35 : 1 }}
+              />
+              <SpeakerLabel
+                speaker={s}
+                selected={speakerFilter.has(s.name)}
+                filtering={filtering}
+                onToggle={() => onToggleSpeaker(s.name)}
+                onRename={onRenameSpeaker}
+              />
               <span className="font-mono text-[11px] tabular-nums text-ink-3">{Math.round(s.share * 100)}%</span>
             </div>
           ))}
@@ -229,6 +298,47 @@ export function TimelineMap({
             <span key={t} className="absolute bottom-5 top-0 w-px bg-rule/60" style={{ left: pct(t) }} />
           ))}
 
+          {showTopics && (
+            <div className={`relative ${ROW}`}>
+              {chapters.length > 0 ? (
+                chapters.map((c) => {
+                  const current = currentMs >= c.startMs && currentMs < c.endMs;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSeek(c.startMs);
+                      }}
+                      title={`${c.title} · ${formatClock(c.startMs)}–${formatClock(c.endMs)}`}
+                      className={`absolute inset-y-0.5 z-10 overflow-hidden truncate rounded-md border px-1.5 text-left text-[11px] font-medium leading-6 transition-colors ${
+                        current
+                          ? "border-accent/40 bg-accent-soft text-accent-ink"
+                          : "border-rule bg-paper text-ink-2 hover:border-ink-3 hover:text-ink"
+                      }`}
+                      style={{ left: `calc(${pct(c.startMs)} + 1px)`, width: `calc(${pct(c.endMs - c.startMs)} - 2px)` }}
+                    >
+                      {c.title}
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="flex h-full items-center gap-2 text-[11px]" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    type="button"
+                    onClick={findTopics}
+                    disabled={topicsState.busy}
+                    className="rounded-md border border-dashed border-rule-2 px-2 py-0.5 font-medium text-ink-2 hover:border-ink-3 hover:text-ink disabled:opacity-60"
+                  >
+                    {topicsState.busy ? "Finding topics…" : "Find topics"}
+                  </button>
+                  {topicsState.error && <span className="text-bad">{topicsState.error}</span>}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className={`relative ${ROW}`}>
             {pins.map((p) => (
               <button
@@ -258,6 +368,7 @@ export function TimelineMap({
                 color={s.color}
                 totalMs={totalMs}
                 activeLineId={activeLine?.speakerName === s.name ? activeLine.id : null}
+                dimmed={filtering && !speakerFilter.has(s.name)}
               />
             </div>
           ))}
@@ -288,7 +399,7 @@ export function TimelineMap({
           )}
 
           <div
-            className="pointer-events-none absolute bottom-5 top-0 w-0.5 -translate-x-1/2 bg-accent transition-[left] duration-200 ease-linear"
+            className="pointer-events-none absolute bottom-5 top-0 z-20 w-0.5 -translate-x-1/2 bg-accent transition-[left] duration-200 ease-linear"
             style={{ left: pct(currentMs) }}
           >
             <span className="absolute -top-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-accent" />
@@ -296,7 +407,7 @@ export function TimelineMap({
 
           {tip && (
             <div
-              className={`pointer-events-none absolute bottom-full z-20 mb-1 w-64 rounded-lg border border-rule bg-card p-2.5 text-xs shadow-lg ${edgeShift(tip.ms)}`}
+              className={`pointer-events-none absolute bottom-full z-30 mb-1 w-64 rounded-lg border border-rule bg-card p-2.5 text-xs shadow-lg ${edgeShift(tip.ms)}`}
               style={{ left: pct(tip.ms) }}
             >
               <div className="mb-1 flex items-center gap-2 text-ink-3">

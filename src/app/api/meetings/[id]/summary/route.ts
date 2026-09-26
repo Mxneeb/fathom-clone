@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateSummary } from "@/lib/ai";
+import { resolveLineCitations } from "@/lib/citations";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -36,9 +37,12 @@ export async function POST(
 
   let content: string;
   try {
-    content = await generateSummary(
-      meeting.transcriptLines.map((l) => ({ speakerName: l.speakerName, text: l.text })),
-      parsed.data.template
+    content = resolveLineCitations(
+      await generateSummary(
+        meeting.transcriptLines.map((l) => ({ speakerName: l.speakerName, text: l.text })),
+        parsed.data.template
+      ),
+      meeting.transcriptLines
     );
   } catch (err) {
     console.error("generateSummary failed", err);

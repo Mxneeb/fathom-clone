@@ -25,6 +25,7 @@ export default async function SharePage({
       meeting: {
         include: {
           transcriptLines: { orderBy: { order: "asc" } },
+          chapters: { orderBy: { order: "asc" } },
           summaries: { orderBy: { generatedAt: "asc" } },
           actionItems: { orderBy: { createdAt: "asc" } },
           highlights: { orderBy: { timestampMs: "asc" } },
@@ -100,6 +101,7 @@ export default async function SharePage({
             sourceMs: a.sourceMs,
           }))}
           initialSummaries={meeting.summaries.map((s) => ({ id: s.id, template: s.template, content: s.content }))}
+          chapters={meeting.chapters.map((c) => ({ id: c.id, title: c.title, startMs: c.startMs, endMs: c.endMs }))}
           initialSeekMs={seekMs}
         />
       </main>

@@ -35,6 +35,7 @@ export default async function MeetingPage({
     include: {
       transcriptLines: { orderBy: { order: "asc" } },
       participants: true,
+      chapters: { orderBy: { order: "asc" } },
       summaries: { orderBy: { generatedAt: "asc" } },
       actionItems: { orderBy: { createdAt: "asc" } },
       highlights: { orderBy: { timestampMs: "asc" } },
@@ -108,6 +109,7 @@ export default async function MeetingPage({
           sourceMs: a.sourceMs,
         }))}
         initialSummaries={meeting.summaries.map((s) => ({ id: s.id, template: s.template, content: s.content }))}
+        chapters={meeting.chapters.map((c) => ({ id: c.id, title: c.title, startMs: c.startMs, endMs: c.endMs }))}
         initialSeekMs={seekMs}
         speakerStatus={meeting.speakerStatus}
         speakerError={meeting.speakerError}

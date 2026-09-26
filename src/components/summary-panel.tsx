@@ -16,10 +16,13 @@ const TEMPLATES: { id: Template; name: string; hint: string }[] = [
 export function SummaryPanel({
   meetingId,
   initialSummaries,
+  onSeek,
   readOnly = false,
 }: {
   meetingId: string;
   initialSummaries: SummaryData[];
+  /** Jumps playback to a cited moment. */
+  onSeek: (ms: number) => void;
   readOnly?: boolean;
 }) {
   const [summaries, setSummaries] = useState(initialSummaries);
@@ -81,7 +84,7 @@ export function SummaryPanel({
     >
       {current ? (
         <div className="space-y-3">
-          {renderMarkdown(current.content)}
+          {renderMarkdown(current.content, onSeek)}
           {!readOnly && (
             <div className="pt-1">
               <QuietButton onClick={generate} disabled={loading} className="-ml-2">

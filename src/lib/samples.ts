@@ -16,6 +16,7 @@ export async function copySampleMeetingsTo(userId: string) {
     include: {
       participants: true,
       transcriptLines: true,
+      chapters: true,
       summaries: true,
       actionItems: true,
       highlights: true,
@@ -28,6 +29,7 @@ export async function copySampleMeetingsTo(userId: string) {
   const meetings = [];
   const participants = [];
   const lines = [];
+  const chapters = [];
   const summaries = [];
   const actionItems = [];
   const highlights = [];
@@ -62,6 +64,9 @@ export async function copySampleMeetingsTo(userId: string) {
         order: l.order,
       });
     }
+    for (const c of t.chapters) {
+      chapters.push({ meetingId, title: c.title, startMs: c.startMs, endMs: c.endMs, order: c.order });
+    }
     for (const s of t.summaries) {
       summaries.push({ meetingId, template: s.template, content: s.content, generatedAt: s.generatedAt });
     }
@@ -85,6 +90,7 @@ export async function copySampleMeetingsTo(userId: string) {
     prisma.meeting.createMany({ data: meetings }),
     prisma.participant.createMany({ data: participants }),
     prisma.transcriptLine.createMany({ data: lines }),
+    prisma.chapter.createMany({ data: chapters }),
     prisma.summary.createMany({ data: summaries }),
     prisma.actionItem.createMany({ data: actionItems }),
     prisma.highlight.createMany({ data: highlights }),

@@ -46,15 +46,26 @@ function findLineStart(timing: TimingFile, matcher: (text: string) => boolean): 
   return line.startMs;
 }
 
+// Summaries cite their sources as [[a phrase from the line]]; stored as the
+// [t=ms] citations the app renders as jump-to-moment chips.
+function resolveSeedCitations(timing: TimingFile, content: string) {
+  return content.replace(/\[\[([^\]]+)\]\]/g, (_m, phrase: string) => {
+    const needle = phrase.toLowerCase();
+    return `[t=${findLineStart(timing, (t) => t.includes(needle))}]`;
+  });
+}
+
 async function seedMeeting(opts: {
   timing: TimingFile;
+  // Topics for the timeline; `at` finds the line each one starts on.
+  chapters: { title: string; at: (t: string) => boolean }[];
   summaries: { template: SummaryTemplate; content: string }[];
   // `at` finds the line where the commitment was made; its start time pins
   // the item on the meeting timeline.
   actionItems: { text: string; owner?: string; dueDate?: Date; at: (t: string) => boolean }[];
   highlights: { matcher: (t: string) => boolean; label: HighlightLabel; note: string }[];
 }) {
-  const { timing, summaries, actionItems, highlights } = opts;
+  const { timing, chapters, summaries, actionItems, highlights } = opts;
 
   const meeting = await prisma.meeting.create({
     data: {
@@ -93,9 +104,20 @@ async function seedMeeting(opts: {
     })),
   });
 
+  const starts = chapters.map((c, i) => (i === 0 ? 0 : findLineStart(timing, c.at)));
+  await prisma.chapter.createMany({
+    data: chapters.map((c, i) => ({
+      meetingId: meeting.id,
+      title: c.title,
+      startMs: starts[i],
+      endMs: i + 1 < chapters.length ? starts[i + 1] : timing.totalMs,
+      order: i,
+    })),
+  });
+
   for (const s of summaries) {
     await prisma.summary.create({
-      data: { meetingId: meeting.id, template: s.template, content: s.content },
+      data: { meetingId: meeting.id, template: s.template, content: resolveSeedCitations(timing, s.content) },
     });
   }
 
@@ -142,16 +164,22 @@ async function main() {
   const productSync = loadTiming("product-sync");
   await seedMeeting({
     timing: productSync,
+    chapters: [
+      { title: "Search revamp", at: () => true },
+      { title: "Notifications blocked", at: (t) => t.includes("what about the mobile notifications") },
+      { title: "Onboarding feedback", at: (t) => t.includes("one more thing, i want to flag") },
+      { title: "Recap", at: (t) => t.includes("to summarize") },
+    ],
     summaries: [
       {
         template: "GENERAL",
-        content: `**Search revamp** is ~70% done — full-text indexing is live in staging, ranking logic still needs to be wired up. Tight but achievable for the Sep 15 launch if an extra engineer helps this week.
+        content: `**Search revamp** is ~70% done — full-text indexing is live in staging, ranking logic still needs to be wired up. [[seventy percent done]] Tight but achievable for the Sep 15 launch if an extra engineer helps this week. [[one more engineer on ranking]]
 
-**Mobile notifications** are blocked on design finalizing the notification preferences screen. Alex will chase design for an answer by Thursday.
+**Mobile notifications** are blocked on design finalizing the notification preferences screen. [[that one's blocked]] Alex will chase design for an answer by Thursday. [[follow up with design today]]
 
-**Onboarding feedback** has been strongly positive — several customers called out the new flow as a highlight. Team will keep an eye on the metrics over the next couple of weeks to confirm the trend holds.
+**Onboarding feedback** has been strongly positive — several customers called out the new flow as a highlight. [[called it out as a highlight]] Team will keep an eye on the metrics over the next couple of weeks to confirm the trend holds. [[keep an eye on the metrics]]
 
-Priya will send the updated roadmap doc after the call.`,
+Priya will send the updated roadmap doc after the call. [[updated roadmap doc]]`,
       },
     ],
     actionItems: [
@@ -170,24 +198,31 @@ Priya will send the updated roadmap doc after the call.`,
   const salesDiscovery = loadTiming("sales-discovery");
   await seedMeeting({
     timing: salesDiscovery,
+    chapters: [
+      { title: "Introductions", at: () => true },
+      { title: "Why they're looking", at: (t) => t.includes("what's driving you to look") },
+      { title: "Decision makers and ERP", at: (t) => t.includes("who else is involved") },
+      { title: "Timeline and risk", at: (t) => t.includes("is there a specific date") },
+      { title: "Next steps", at: (t) => t.includes("here's what i'd suggest as next steps") },
+    ],
     summaries: [
       {
         template: "GENERAL",
-        content: `Acme's dispatch team manually tracks ~400 shipments/week (growing ~15% QoQ) across three spreadsheets — error-prone and not scaling. Ops director Maria and their IT lead will also need to weigh in.
+        content: `Acme's dispatch team manually tracks ~400 shipments/week (growing ~15% QoQ) across three spreadsheets — error-prone and not scaling. [[spending way too much time]][[somewhere around four hundred]] Ops director Maria and their IT lead will also need to weigh in. [[our ops director, maria]]
 
-Acme runs NetSuite for ERP; we have a native connector, which removes a key integration concern. They want to go live before November peak season, with a decision expected in 3–4 weeks. Biggest risk of inaction: missed shipments during peak season, hitting customer trust and renewals.
+Acme runs NetSuite for ERP; we have a native connector, which removes a key integration concern. [[native netsuite connector]] They want to go live before November peak season, with a decision expected in 3–4 weeks. [[peak season starts in november]] Biggest risk of inaction: missed shipments during peak season, hitting customer trust and renewals. [[missed shipments during our busiest]]
 
-Next steps: a technical scoping doc for the NetSuite integration, and a proposal reflecting the November timeline, looping in Maria directly.`,
+Next steps: a technical scoping doc for the NetSuite integration, and a proposal reflecting the November timeline, looping in Maria directly. [[here's what i'd suggest as next steps]]`,
       },
       {
         template: "SALES",
         content: `**Budget:** Not yet discussed explicitly — to be addressed in the proposal stage.
 
-**Authority:** Sam Whitfield is evaluating; Maria (Ops Director) must sign off, IT lead reviews integration requirements. Recommend looping Maria in early (requested by Sam).
+**Authority:** Sam Whitfield is evaluating; Maria (Ops Director) must sign off, IT lead reviews integration requirements. [[our ops director, maria]] Recommend looping Maria in early (requested by Sam). [[loop in maria on the proposal]]
 
-**Need:** Manual, spreadsheet-based shipment tracking (~400/week, +15% QoQ) is error-prone and won't scale. Existing NetSuite ERP integration is a solved problem via our native connector.
+**Need:** Manual, spreadsheet-based shipment tracking (~400/week, +15% QoQ) is error-prone and won't scale. [[spending way too much time]] Existing NetSuite ERP integration is a solved problem via our native connector. [[native netsuite connector]]
 
-**Timeline:** Hard deadline pressure — must be live before November peak season. Decision expected within 3–4 weeks. Highest-leverage angle: cost of inaction is missed shipments during their busiest, highest-visibility stretch.
+**Timeline:** Hard deadline pressure — must be live before November peak season. [[peak season starts in november]] Decision expected within 3–4 weeks. [[three to four weeks]] Highest-leverage angle: cost of inaction is missed shipments during their busiest, highest-visibility stretch. [[missed shipments during our busiest]]
 
 **Recommended next step:** Fast-track scoping doc + proposal this week to match their compressed evaluation window.`,
       },
@@ -210,25 +245,35 @@ Next steps: a technical scoping doc for the NetSuite integration, and a proposal
   const q4Planning = loadTiming("q4-planning");
   await seedMeeting({
     timing: q4Planning,
+    chapters: [
+      { title: "Agenda and goals", at: () => true },
+      { title: "Ranking shipped", at: (t) => t.includes("priya, do you want to start") },
+      { title: "Notifications unblocked", at: (t) => t.includes("maria, notifications") },
+      { title: "Mobile crash reports", at: (t) => t.includes("you flagged support load") },
+      { title: "The Acme deal", at: (t) => t.includes("jordan, chris, the acme deal") },
+      { title: "Capacity trade-off", at: (t) => t.includes("so this is the real conversation") },
+      { title: "Agreeing the plan", at: (t) => t.includes("let me say it back") },
+      { title: "Risks and wrap-up", at: (t) => t.includes("can i add one risk") },
+    ],
     summaries: [
       {
         template: "GENERAL",
-        content: `The team agreed three Q4 priorities, in order, and made the main trade-off explicit: if the NetSuite work overruns, notifications slips, not Acme.
+        content: `The team agreed three Q4 priorities, in order, and made the main trade-off explicit: if the NetSuite work overruns, notifications slips, not Acme. [[notifications moves, not acme]]
 
 ## Decisions
-- **NetSuite hardening for Acme** comes first: a load test with Acme-sized data, plus retry handling for NetSuite rate limits. Sam and Chris, done by 15 October.
-- **Mobile notifications** is second. Maria's preference designs are final; Sam writes the API contract first, Omar builds the mobile screen against a mock, and Sam finishes the backend after NetSuite.
-- **Recently viewed boosting** in search is third, run by Priya in parallel (about three weeks).
-- Full personalization moves to Q1, with a scoping proposal from Priya by the end of October.
+- **NetSuite hardening for Acme** comes first: a load test with Acme-sized data, plus retry handling for NetSuite rate limits. Sam and Chris, done by 15 October. [[priority one, netsuite hardening]]
+- **Mobile notifications** is second. Maria's preference designs are final; Sam writes the API contract first, Omar builds the mobile screen against a mock, and Sam finishes the backend after NetSuite. [[final final. i'll send the files]][[omar builds against a mock]]
+- **Recently viewed boosting** in search is third, run by Priya in parallel (about three weeks). [[recently viewed boosting doesn't touch]]
+- Full personalization moves to Q1, with a scoping proposal from Priya by the end of October. [[full personalization moves to q1]][[end of october works]]
 
 ## Context
-- Search ranking shipped on 15 September; first-result click-through is up about 11% week over week.
-- Acme Logistics (around 400 shipments a week, growing 15% a quarter) wants to go live before its November peak. The NetSuite integration is the one real risk to the deal. Their ops director singled out how easy the demo was, and their IT lead wants to see the load test results.
-- Mobile crash reports doubled after the last release because of a bug on older Android phones; the fix ships Thursday.
+- Search ranking shipped on 15 September; first-result click-through is up about 11% week over week. [[click through on the first result]]
+- Acme Logistics (around 400 shipments a week, growing 15% a quarter) wants to go live before its November peak. [[four hundred shipments a week]] The NetSuite integration is the one real risk to the deal. [[the one thing that could sink it]] Their ops director singled out how easy the demo was, and their IT lead wants to see the load test results. [[first demo that didn't make her feel]][[see the load test results]]
+- Mobile crash reports doubled after the last release because of a bug on older Android phones; the fix ships Thursday. [[crash reports doubled]][[it goes out thursday]]
 
 ## Risks
-- Sam is needed on two of the three priorities.
-- If the load test turns up something big, notifications moves. The team agreed this now so it isn't argued about in October.`,
+- Sam is needed on two of the three priorities. [[so sam is the bottleneck]]
+- If the load test turns up something big, notifications moves. The team agreed this now so it isn't argued about in October. [[if netsuite needs more than two weeks]]`,
       },
     ],
     actionItems: [
@@ -255,12 +300,16 @@ Next steps: a technical scoping doc for the NetSuite integration, and a proposal
   const standup = loadTiming("daily-standup");
   await seedMeeting({
     timing: standup,
+    chapters: [
+      { title: "Ranking progress", at: () => true },
+      { title: "Blocked on design", at: (t) => t.includes("block time for that at three") },
+    ],
     summaries: [
       {
         template: "GENERAL",
-        content: `Search ranking logic is done (ahead of schedule); Sam moved fully onto ranking after wrapping billing early, no blockers. Ranking spec review planned for 3pm today.
+        content: `Search ranking logic is done (ahead of schedule); Sam moved fully onto ranking after wrapping billing early, no blockers. [[finished the ranking logic]][[wrapped up the billing project early]] Ranking spec review planned for 3pm today. [[block time for that at three]]
 
-Notifications work remains blocked on design finalizing the notification preferences screen — Alex is still waiting to hear back. Sam will hold off starting the notifications backend until that unblocks.`,
+Notifications work remains blocked on design finalizing the notification preferences screen — Alex is still waiting to hear back. [[still waiting to hear back]] Sam will hold off starting the notifications backend until that unblocks. [[hold off starting the notifications backend]]`,
       },
     ],
     actionItems: [

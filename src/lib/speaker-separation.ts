@@ -7,6 +7,7 @@ import { promisify } from "node:util";
 import { prisma } from "@/lib/prisma";
 import { decodeForSpeakerSeparation } from "@/lib/audio";
 import { suggestSpeakerNames } from "@/lib/ai";
+import { writeChapters } from "@/lib/chapters";
 
 // Whisper transcribes words but can't tell voices apart, so an upload starts
 // as a single "Speaker". This runs afterwards, in the background: open-source
@@ -103,6 +104,13 @@ async function claim(meetingId: string) {
 export async function separateSpeakers(meetingId: string) {
   if (!(await claim(meetingId))) return;
 
+  // Topics for the timeline come from the model and don't depend on who's
+  // speaking, so they're written alongside (network vs. CPU, near-free).
+  const chaptersDone = prisma.chapter
+    .count({ where: { meetingId } })
+    .then((n) => (n === 0 ? writeChapters(meetingId) : null))
+    .catch((err) => console.error("writeChapters failed", err));
+
   try {
     const meeting = await prisma.meeting.findUniqueOrThrow({
       where: { id: meetingId },
@@ -144,6 +152,9 @@ export async function separateSpeakers(meetingId: string) {
     }));
     const participantByLabel = new Map(labels.map((label, i) => [label, participants[i]]));
 
+    // Before DONE, so the page's refresh brings topics and speakers together.
+    await chaptersDone;
+
     // One write per speaker, with room over the 5s default: a meeting with
     // many speakers is a dozen round trips, and slower networks exceed it.
     await prisma.$transaction(
@@ -164,6 +175,7 @@ export async function separateSpeakers(meetingId: string) {
     );
   } catch (err) {
     console.error("separateSpeakers failed", err);
+    await chaptersDone;
     await prisma.meeting.update({
       where: { id: meetingId },
       data: {

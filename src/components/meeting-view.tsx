@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { speakerStats } from "@/lib/speakers";
 import { SpeakerStatusBanner, type SpeakerStatus } from "@/components/speaker-status-banner";
 import type { HighlightLabel } from "@/lib/highlights";
-import { TimelineMap, type TimelinePin } from "@/components/timeline-map";
+import { TimelineMap, type ChapterData, type TimelinePin } from "@/components/timeline-map";
+import { AskPanel } from "@/components/ask-panel";
 import { Transcript } from "@/components/transcript";
 import { PlayerBar } from "@/components/player-bar";
 import { SummaryPanel, type SummaryData } from "@/components/summary-panel";
@@ -35,6 +36,7 @@ export function MeetingView({
   initialHighlights,
   initialActionItems,
   initialSummaries,
+  chapters,
   initialSeekMs,
   speakerStatus = "NONE",
   speakerError = null,
@@ -48,6 +50,7 @@ export function MeetingView({
   initialHighlights: HighlightData[];
   initialActionItems: ActionItemData[];
   initialSummaries: SummaryData[];
+  chapters: ChapterData[];
   /** From a search result or shared moment: start positioned here. */
   initialSeekMs?: number;
   /** Background speaker separation, for uploaded recordings. */
@@ -71,8 +74,24 @@ export function MeetingView({
   // mounted (to say "done") after the refresh that brings the new speakers.
   const [showSpeakerBanner] = useState(!readOnly && speakerStatus !== "NONE" && speakerStatus !== "DONE");
 
+  const [pickedSpeakers, setPickedSpeakers] = useState<Set<string>>(new Set());
+
   const totalMs = Math.max(durationMs, lines.at(-1)?.endMs ?? 0, 1000);
   const speakers = useMemo(() => speakerStats(lines), [lines]);
+  // Drop picks that no longer exist (a speaker was renamed or merged).
+  const speakerFilter = useMemo(
+    () => new Set([...pickedSpeakers].filter((n) => speakers.some((s) => s.name === n))),
+    [pickedSpeakers, speakers]
+  );
+  const toggleSpeaker = useCallback((name: string) => {
+    setPickedSpeakers((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  }, []);
+  const clearSpeakerFilter = useCallback(() => setPickedSpeakers(new Set()), []);
   const colorBySpeaker = useMemo(() => new Map(speakers.map((s) => [s.name, s.color])), [speakers]);
   const activeLine = useMemo(() => lineAt(lines, currentMs), [lines, currentMs]);
 
@@ -155,6 +174,15 @@ export function MeetingView({
     },
     [meetingId, router]
   );
+
+  const findTopics = useCallback(async () => {
+    const res = await fetch(`/api/meetings/${meetingId}/chapters`, { method: "POST" });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error ?? "Couldn't find topics.");
+    }
+    router.refresh();
+  }, [meetingId, router]);
 
   const closeComposer = useCallback(() => setComposerAt(null), []);
   const highlightLine = useCallback((line: LineData) => setComposerAt(line.startMs), []);
@@ -239,8 +267,12 @@ export function MeetingView({
         currentMs={currentMs}
         activeLine={activeLine}
         pins={pins}
+        chapters={chapters}
+        speakerFilter={speakerFilter}
+        onToggleSpeaker={toggleSpeaker}
         onSeek={seek}
         onRenameSpeaker={readOnly ? undefined : renameSpeaker}
+        onFindTopics={readOnly ? undefined : findTopics}
       />
 
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
@@ -255,7 +287,8 @@ export function MeetingView({
               className="w-full rounded-2xl border border-rule bg-ink"
             />
           )}
-          <SummaryPanel meetingId={meetingId} initialSummaries={initialSummaries} readOnly={readOnly} />
+          {!readOnly && <AskPanel meetingId={meetingId} onSeek={seek} />}
+          <SummaryPanel meetingId={meetingId} initialSummaries={initialSummaries} onSeek={seek} readOnly={readOnly} />
           <ActionItemsPanel
             meetingId={meetingId}
             items={actionItems}
@@ -279,6 +312,8 @@ export function MeetingView({
           onSeek={seek}
           onHighlightLine={readOnly ? undefined : highlightLine}
           followSignal={followSignal}
+          speakerFilter={speakerFilter}
+          onClearFilter={clearSpeakerFilter}
         />
       </div>
 

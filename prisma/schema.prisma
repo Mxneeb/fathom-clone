@@ -119,6 +119,7 @@ model Meeting {
 
   participants    Participant[]
   transcriptLines TranscriptLine[]
+  chapters        Chapter[]
   summaries       Summary[]
   actionItems     ActionItem[]
   highlights      Highlight[]
@@ -151,6 +152,20 @@ model TranscriptLine {
   endMs         Int
   text          String       @db.Text
   order         Int
+
+  @@index([meetingId, order])
+}
+
+// The meeting split into topics, shown as bands on the timeline. Written by
+// the model for uploads, by hand for the sample meetings.
+model Chapter {
+  id        String  @id @default(cuid())
+  meetingId String
+  meeting   Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  title     String
+  startMs   Int
+  endMs     Int
+  order     Int
 
   @@index([meetingId, order])
 }
